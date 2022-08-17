@@ -1,0 +1,61 @@
+{
+    "nonroot": {
+        "person": [
+            "the customer",
+            "the person",
+            "the human",
+            "the client",
+            "the guest"
+        ],
+        "person-subj-s": [
+            "{pronoun-subj-s}",
+            "{person}"
+        ],
+        "person-subj-pl": [
+            "{pronoun-subj-pl}"
+        ],
+        "person-obj": [
+            "{pronoun-obj}",
+            "{person}"
+        ],
+        "says-s": [
+            "says {phrase}",
+            "says that {phrase}",
+            "said {phrase}",
+            "said that {phrase}",
+            "asks {question}"
+        ],
+
+        "says-pl": [
+            "say {phrase}",
+            "say that {phrase}",
+            "said {phrase}",
+            "said that {phrase}",
+            "ask {question}"
+        ],
+    
+        "ego": [
+            ""
+        ]
+    },
+    "root": {
+        "say": [
+            "say {phrase} to {person-obj}",
+            "tell {person-obj} {phrase}",
+            "tell {person-obj} that {phrase}",
+            "say to {person-obj} {phrase}",
+            "say {phrase}"
+        ],
+        "command": [
+            "tell {person-obj} to {imp}"
+        ],
+        "ask": [
+            "ask {person-obj} {question}"
+        ],
+        "if": [
+            "if {person-subj-s} {says-s} then {say}",
+            "if {person-subj-pl} {says-pl} then {say}"
+        ]
+    }
+    
+}
