@@ -1,14 +1,14 @@
 import json
 import re
 import datasets
-from textwrap import fill
+from itertools import cycle
 from typing import Dict, List
 
 def fill_template(template: str, wildcards: List[str], grammar: Dict) -> List[str]:
     if len(wildcards) == 0:
         return [template]
     w = wildcards[-1]
-    if w == 'phrase':
+    if w == 'phrase' or w == 'that-phrase':
         return fill_template(template, wildcards[:-1], grammar)
     elif w == 'question':
         return fill_template(template, wildcards[:-1], grammar)
@@ -93,10 +93,52 @@ def build_tree(file: str):
     return templates
 
 def load_questions():
-    dataset = datasets.load_dataset('../daily_dialog_questions')
-    dataset = dataset.filter(lambda x: x['sentence'].count(' ') > 0)
+    dataset = datasets.load_from_disk('../data/daily_dialog_questions')
+    # print(len(dataset))
+    dataset = dataset.filter(lambda x: x['sentence'].count(' ') > 0 and x['sentence'].count('"') == 0)
+    # print(len(dataset))
+    return dataset
+
+def load_statements():
+    dataset = datasets.load_from_disk('../data/daily_dialog_statements')
+    # print(len(dataset))
+    dataset = dataset.filter(lambda x: x['sentence'].count(';') == 0 and x['sentence'].count('"') == 0)
+    # print(len(dataset))
+    return dataset
+
+def load_imperatives():
+    dataset = datasets.load_dataset("text", data_files="../data/imperatives.txt")["train"]
+    def preprocess(x):
+        x['text'] = x['text'].lower()
+        x['text'] = x['text'].split('.')[0]
+        x['text'] = x['text'].replace('!', '')
+        x['text'] = x['text'].replace(',', '')
+        return x
+    dataset = dataset.map(preprocess)
+    def filter_imperatives(x):
+        return not (x['text'].startswith(('dont', 'don\'t', 'do ', 'let\'s', 'let us', 'if ', 'this ')) or ';' in x['text'] or '"' in x['text'])
+    dataset = dataset.filter(filter_imperatives)
+    return dataset
 
 if __name__ == '__main__':
     templates = build_tree('templates.json')
     
-
+    questions = cycle(load_questions().shuffle()["sentence"])
+    statements = cycle(load_statements().shuffle()["sentence"])
+    imperatives = cycle(load_imperatives().shuffle()["text"])
+    filled_statements = []
+    for template in templates:
+        if 'that-phrase' in template:
+            continue
+        for i in range(40):
+            t = template
+            while '{phrase}' in t:
+                t = t.replace('{phrase}', f'"{next(statements)}"', 1)
+            while '{question}' in t:
+                t = t.replace('{question}', f'"{next(questions)}"', 1)
+            while '{imp}' in t:
+                t = t.replace('{imp}', f'"{next(imperatives)}"', 1)
+            filled_statements.append(t)
+            print(t)
+    dataset = datasets.Dataset.from_dict({'sentence': filled_statements})
+    dataset.save_to_disk('../data/filled-templates')

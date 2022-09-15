@@ -18,43 +18,61 @@
             "{pronoun-obj}",
             "{person}"
         ],
-        "says-s": [
-            "says {phrase}",
-            "says that {phrase}",
-            "said {phrase}",
-            "said that {phrase}",
-            "asks {question}"
-        ],
-
-        "says-pl": [
-            "say {phrase}",
-            "say that {phrase}",
-            "said {phrase}",
-            "said that {phrase}",
-            "ask {question}"
-        ],
+        "says-s": {
+            "parse": "says(x)",
+            "forms": [
+                "says {phrase}",
+                "says that {that-phrase}",
+                "said {phrase}",
+                "said that {that-phrase}",
+                "asks {question}",
+                "asks you to {imp}"
+            ]
+        },
+        "says-pl": {
+            "parse": "says(x)",
+            "forms": [
+                "say {phrase}",
+                "say that {that-phrase}",
+                "said {phrase}",
+                "said that {that-phrase}",
+                "ask {question}",
+                "ask you to {imp}"
+            ]
+        },
     
-        "ego": [
-            ""
-        ]
-    },
-    "root": {
-        "say": [
-            "say {phrase} to {person-obj}",
-            "tell {person-obj} {phrase}",
-            "tell {person-obj} that {phrase}",
-            "say to {person-obj} {phrase}",
-            "say {phrase}"
-        ],
-        "command": [
-            "tell {person-obj} to {imp}"
+        "say": {
+            "parse": "say(x)",
+            "forms": [
+                "say {phrase} to {pronoun-obj}",
+                "tell {person-obj} {phrase}",
+                "tell {person-obj} that {that-phrase}",
+                "say to {person-obj} {phrase}",
+                "say {phrase}"
+            ]
+        },
+        "action": [
+            "next you should {action}",
+            "next {action}"
         ],
         "ask": [
             "ask {person-obj} {question}"
         ],
+        "command": [
+            "tell {person-obj} to {imp}",
+            "ask {person-obj} to {imp}",
+            "instruct {person-obj} to {imp}"
+        ],
         "if": [
             "if {person-subj-s} {says-s} then {say}",
-            "if {person-subj-pl} {says-pl} then {say}"
+            "if {person-subj-pl} {says-pl} then {say}",
+            "if {person-subj-s} {says-s} then {command}",
+            "if {person-subj-pl} {says-pl} then {command}"
+        ]
+    },
+    "root": {
+        "root": [
+            
         ]
     }
     

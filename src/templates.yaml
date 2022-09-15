@@ -1,0 +1,77 @@
+root:
+  - name: 'say'
+    parse: 'say($1)'
+    sentences:
+      - '{request} say {$1:phrase} to {pronoun-obj}'
+      - '{request} say {$1:phrase}'
+      - '{request} say {$1:phrase} to {pronoun-obj}'
+      - '{request} tell {person-obj} {$1:phrase}'
+      # - 'tell {person-obj} that {$1:that-phrase}'
+  - name: 'action'
+    parse: 'resolve($1)'
+    sentences:
+      - '{request} {$1:action}'
+  - name: 'ask'
+    parse: 'ask($1)'
+    sentences:
+      - '{request} ask {person-obj} {$1:question}'
+  - name: 'imperative'
+    parse: 'say($1)'
+    sentences:
+      - '{request} tell {person-obj} to {$1:imp}'
+      - '{request} ask {person-obj} to {$1:imp}'
+      - '{request} instruct {person-obj} to {$1:imp}'
+  - name: 'if'
+    parse: 'if($1, $2)'
+    sentences:
+      - 'if {person-subj-s} {$1:says-s} then {$2:say}'
+      - 'if {person-subj-pl} {$1:says-pl} then {$2:say}'
+      - 'if {person-subj-s} {$1:says-s} then {$2:imperative}'
+      - 'if {person-subj-pl} {$1:says-pl} then {$2:imperative}'
+components:
+  - name: 'request'
+    parse: ''
+    sentences:
+      - 'you should'
+      - 'you'
+      - ''
+  - name: 'person'
+    parse: ''
+    sentences:
+      - "the customer"
+      - "the person"
+      - "the human"
+      - "the client"
+      - "the guest"
+  - name: "person-subj-s"
+    parse: ''
+    sentences:
+      - "{pronoun-subj-s}"
+      - "{person}"
+  - name: "person-subj-pl"
+    parse: ''
+    sentences:
+      - "{pronoun-subj-pl}"
+  - name: "person-obj"
+    parse: ''
+    sentences:
+      - "{pronoun-obj}"
+      - "{person}"
+  - name: "says-s"
+    parse: 'says($1)'
+    sentences:
+      - "says {$1:phrase}",
+      # - "says that {that-phrase}",
+      - "said {$1:phrase}",
+      # - "said that {that-phrase}",
+      - "asks {$1:question}",
+      - "asks you to {$1:imp}"
+  - name: "says-pl"
+    parse: 'says($1)'
+    sentences:
+      - "say {$1:phrase}",
+      # - "says that {that-phrase}",
+      - "said {$1:phrase}",
+      # - "said that {that-phrase}",
+      - "ask {$1:question}",
+      - "ask you to {$1:imp}"
