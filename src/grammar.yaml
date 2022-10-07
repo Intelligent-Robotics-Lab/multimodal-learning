@@ -2,9 +2,9 @@ root:
   - name: 'say'
     parse: 'say($1)'
     sentences:
-      - '{request} say {$1:phrase} to {pronoun-obj}'
+      - '{request} say {$1:phrase} to {person-obj}'
       - '{request} say {$1:phrase}'
-      - '{request} say {$1:phrase} to {pronoun-obj}'
+      - '{request} say {$1:phrase} to {person-obj}'
       - '{request} tell {person-obj} {$1:phrase}'
       # - 'tell {person-obj} that {$1:that-phrase}'
   - name: 'action'
@@ -38,40 +38,40 @@ components:
   - name: 'person'
     parse: ''
     sentences:
-      - "the customer"
-      - "the person"
-      - "the human"
-      - "the client"
-      - "the guest"
-  - name: "person-subj-s"
+      - 'the customer'
+      - 'the person'
+      - 'the human'
+      - 'the client'
+      - 'the guest'
+  - name: 'person-subj-s'
     parse: ''
     sentences:
-      - "{pronoun-subj-s}"
-      - "{person}"
-  - name: "person-subj-pl"
+      - '{pronoun-subj-s}'
+      - '{person}'
+  - name: 'person-subj-pl'
     parse: ''
     sentences:
-      - "{pronoun-subj-pl}"
-  - name: "person-obj"
+      - '{pronoun-subj-pl}'
+  - name: 'person-obj'
     parse: ''
     sentences:
-      - "{pronoun-obj}"
-      - "{person}"
-  - name: "says-s"
+      - '{pronoun-obj}'
+      - '{person}'
+  - name: 'says-s'
     parse: 'says($1)'
     sentences:
-      - "says {$1:phrase}",
-      # - "says that {that-phrase}",
-      - "said {$1:phrase}",
-      # - "said that {that-phrase}",
-      - "asks {$1:question}",
-      - "asks you to {$1:imp}"
-  - name: "says-pl"
+      - 'says {$1:phrase}'
+      # - 'says that {that-phrase}',
+      - 'said {$1:phrase}'
+      # - 'said that {that-phrase}',
+      - 'asks {$1:question}'
+      - 'asks you to {$1:imp}'
+  - name: 'says-pl'
     parse: 'says($1)'
     sentences:
-      - "say {$1:phrase}",
-      # - "says that {that-phrase}",
-      - "said {$1:phrase}",
-      # - "said that {that-phrase}",
-      - "ask {$1:question}",
-      - "ask you to {$1:imp}"
+      - 'say {$1:phrase}'
+      # - 'says that {that-phrase}',
+      - 'said {$1:phrase}'
+      # - 'said that {that-phrase}',
+      - 'ask {$1:question}'
+      - 'ask you to {$1:imp}'
