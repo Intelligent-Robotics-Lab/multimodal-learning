@@ -39,9 +39,16 @@ def load_imperatives():
     dataset = dataset.filter(filter_imperatives)
     return dataset
 
+def load_actions():
+    dataset = datasets.load_dataset("text", data_files="../data/actions.txt")["train"]
+    dataset = dataset.rename_column('text', 'sentence')
+    dataset = dataset.map(preprocess)
+    return dataset
+
 questions = cycle(load_questions().shuffle()["sentence"])
 statements = cycle(load_statements().shuffle()["sentence"])
 imperatives = cycle(load_imperatives().shuffle()["sentence"])
+actions = cycle(load_actions().shuffle()["sentence"])
 
 """
 Algorithm:
@@ -85,11 +92,11 @@ class Phrase:
         if wildcard.index is None:
             new_parse = self.parse
         else:
-            print("Subbing parse")
-            print(f"Index: {wildcard.index}, replacement: {sub_parse}")
+            # print("Subbing parse")
+            # print(f"Index: {wildcard.index}, replacement: {sub_parse}")
             new_parse = self.parse.replace(wildcard.index, sub_parse, 1)
-        print(f'Old parse: {self.parse}')
-        print(f'New parse: {new_parse}')
+        # print(f'Old parse: {self.parse}')
+        # print(f'New parse: {new_parse}')
         return Phrase(new_template, new_parse, self.grammar)
 
     def expand(self, recursion_depth=0) -> Iterable[Phrase]:
@@ -104,6 +111,8 @@ class Phrase:
                     yield from (self.replace(w, f'"{q}"') for q in questions)
                 elif w.name == 'phrase':
                     yield from (self.replace(w, f'"{s}"') for s in statements)
+                elif w.name == 'action':
+                    yield from (self.replace(w, f'{a}') for a in actions)
             
             yield from cycle([self])
         else:
@@ -168,7 +177,7 @@ def fill_pronouns(phrase: Phrase) -> Phrase:
         else:
             t = t.replace('{pronoun-obj}', 'them')
     t = t.replace('  ', ' ')
-    return Phrase(t, phrase.parse, phrase.grammar)
+    return Phrase(t, phrase.parse.replace('  ', ' '), phrase.grammar)
 
 def gen_phrases(grammar_file: str, num_examples: int) -> List[str]:
     grammar = yaml.safe_load(open(grammar_file))
@@ -178,7 +187,7 @@ def gen_phrases(grammar_file: str, num_examples: int) -> List[str]:
     for c in root_components:
         # print(c.name)
         series = (fill_pronouns(p) for p in c.enumerate())
-        for i in range(10):
+        for i in range(1000):
             phrases.append(next(series))
 
     dataset = [{'sentence': p.template, 'parse': p.parse} for p in phrases]
@@ -187,13 +196,14 @@ def gen_phrases(grammar_file: str, num_examples: int) -> List[str]:
         sentence = x['sentence']
         parse = x['parse']
         for i, pattern in enumerate(re.findall(r'"(.*?)"', sentence)):
-            sentence = sentence.replace(f'"{pattern}"', f'<phrase {i}>')
-            parse = parse.replace(f'"{pattern}"', f'<phrase {i}>')
+            sentence = sentence.replace(f'"{pattern}"', f'[phrase_{i}]')
+            parse = parse.replace(f'"{pattern}"', f'[phrase_{i}]')
         x['sentence_anon'] = sentence
         x['parse_anon'] = parse
         return x
 
-    print(anonymize(dataset[-1]))
+    dataset = dataset.map(anonymize).shuffle()
+    dataset.save_to_disk('../data/dataset')
     
 
 if __name__ == '__main__':

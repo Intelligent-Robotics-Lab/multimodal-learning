@@ -52,7 +52,7 @@ def label_sentence(sentence: str):
     #             label.append(0)
 
 tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-dataset = datasets.load_from_disk('../data/filled-templates').shuffle()
+dataset = datasets.load_from_disk('../data/dataset').shuffle()
 
 def preprocess(sample):
     sentence = sample['sentence']
