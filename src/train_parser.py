@@ -12,7 +12,7 @@ from transformers import (Seq2SeqTrainer, Seq2SeqTrainingArguments,
 dataset = datasets.load_from_disk('../data/dataset-split').shuffle()
 tokenizer: T5Tokenizer = T5Tokenizer.from_pretrained("t5-base", model_max_length=128)
 model = T5ForConditionalGeneration.from_pretrained("t5-base")
-custom_token_ids = tokenizer.encode('if(says([phrase_0]),say([phrase_1])) resolve() ask() say()', return_tensors='pt')
+custom_token_ids = tokenizer.encode('if(says([phrase_0]),say([phrase_1])) resolve() ask() say() label()', return_tensors='pt')
 
 class ParserTrainer(Seq2SeqTrainer):
     def prediction_step(
@@ -54,6 +54,10 @@ def preprocess(sample):
     model_inputs["labels"] = label_ids
     return model_inputs
 
+def prefix(sample):
+    sample['sentence_anon'] = ' ' + sample['sentence_anon']
+    return sample
+
 dataset = dataset.map(preprocess, batched=True, batch_size=128, remove_columns=dataset.column_names['train'])
 train_ds = dataset['train']
 val_ds = dataset['test']
@@ -82,9 +86,9 @@ def compute_metrics(eval_preds):
     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-    # for pred, label, dpred, dlabel in zip(preds, labels, decoded_preds, decoded_labels):
-    #     if dlabel != dpred:
-    #         print(f'pred: {dpred}, label: {dlabel}')
+    for pred, label, dpred, dlabel in zip(preds, labels, decoded_preds, decoded_labels):
+        if dlabel != dpred:
+            print(f'pred: {dpred}, label: {dlabel}')
     #         trimmed_label = list(filter(lambda x: x != "<pad>", tokenizer.convert_ids_to_tokens(label)))
     #         trimmed_pred = list(filter(lambda x: x != "<pad>", tokenizer.convert_ids_to_tokens(pred)))
     #         print(f'pred: {trimmed_pred}, \nlabel: {trimmed_label}')

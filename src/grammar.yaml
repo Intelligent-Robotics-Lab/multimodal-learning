@@ -28,6 +28,12 @@ root:
       - 'if {person-subj-pl} {$1:says-pl} then {$2:say}'
       - 'if {person-subj-s} {$1:says-s} then {$2:imperative}'
       - 'if {person-subj-pl} {$1:says-pl} then {$2:imperative}'
+  - name: 'label'
+    parse: 'label($1)'
+    sentences:
+      - 'this is called {$1:action-ing}'
+      - "it's called {$1:action-ing}"
+      - '{$1:action-ing}'
 components:
   - name: 'request'
     parse: ''

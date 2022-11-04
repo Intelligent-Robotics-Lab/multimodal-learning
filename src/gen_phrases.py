@@ -7,6 +7,7 @@ import re
 from itertools import cycle
 from typing import Dict, Iterable, List
 import random
+from lemminflect import getInflection
 
 def preprocess(x):
     x['sentence'] = x['sentence'].lower()
@@ -15,6 +16,8 @@ def preprocess(x):
     x['sentence'] = x['sentence'].replace(',', '')
     x['sentence'] = x['sentence'].replace('?', '')
     return x
+
+
 
 def load_questions():
     dataset = datasets.load_from_disk('../data/daily_dialog_questions')
@@ -54,7 +57,7 @@ Generate a tree of of components, excluding phrases
 Lazy iterate through the tree, generating text where needed
 """
 
-dynamic_wildcards = set(['phrase', 'that-phrase', 'question', 'imp', 'action', 'pronoun-subj-s', 'pronoun-subj-pl', 'pronoun-obj'])
+dynamic_wildcards = set(['phrase', 'that-phrase', 'question', 'imp', 'action', 'action-ing', 'pronoun-subj-s', 'pronoun-subj-pl', 'pronoun-obj'])
 
 class Wildcard:
     def __init__(self, tag: str):
@@ -107,6 +110,9 @@ class Phrase:
                     yield from (self.replace(w, f'"{s}"') for s in self.vocab["statements"])
                 elif w.name == 'action':
                     yield from (self.replace(w, f' {a}') for a in self.vocab["actions"])
+                elif w.name == 'action-ing':
+                    yield from (self.replace(w, f' {a}') for a in self.vocab["gerunds"])
+
             
             yield from cycle([self])
         else:
@@ -134,6 +140,9 @@ class Component:
         template_expansions = cycle((cycle(t.expand()) for t in templates))
         for t in template_expansions:
             yield next(t)
+
+def strip(phrase: Phrase) -> Phrase:
+    return Phrase(phrase.template.replace('  ', ' ').strip(), phrase.parse.replace('  ', ' '), phrase.grammar, phrase.vocab)
 
 def fill_pronouns(phrase: Phrase) -> Phrase:
     template = phrase.template
@@ -170,8 +179,8 @@ def fill_pronouns(phrase: Phrase) -> Phrase:
             t = t.replace('{pronoun-obj}', 'her')
         else:
             t = t.replace('{pronoun-obj}', 'them')
-    t = t.replace('  ', ' ')
-    return Phrase(t, phrase.parse.replace('  ', ' '), phrase.grammar, phrase.vocab)
+
+    return Phrase(t, phrase.parse, phrase.grammar, phrase.vocab)
 
 def gen_phrases(grammar_file: str, num_examples: int, vocab: Dict) -> List[str]:
     grammar = yaml.safe_load(open(grammar_file))
@@ -181,8 +190,10 @@ def gen_phrases(grammar_file: str, num_examples: int, vocab: Dict) -> List[str]:
     for c in root_components:
         # print(c.name)
         series = (fill_pronouns(p) for p in c.enumerate())
+        series = (strip(p) for p in series)
         for i in range(num_examples // len(root_components)):
             phrases.append(next(series))
+            print(phrases[-1])
 
     dataset = [{'sentence': p.template, 'parse': p.parse} for p in phrases]
     dataset = Dataset.from_list(dataset)
@@ -205,19 +216,29 @@ if __name__ == '__main__':
     statements = load_statements().shuffle(seed=1).train_test_split(test_size=0.2)
     imperatives = load_imperatives().shuffle(seed=1).train_test_split(test_size=0.2)
     actions = load_actions().shuffle(seed=1).train_test_split(test_size=0.2)
+    def inflect(x):
+        first_word = x['sentence'].split(' ')[0]
+        gerund = getInflection(first_word, tag='VBG')[0]
+        x['sentence'] = x['sentence'].replace(first_word, gerund, 1)
+        print(x['sentence'])
+        return x
+
+    gerunds = actions.map(inflect)    
 
     train_vocab  = {
         'questions': cycle(questions['train']['sentence']),
         'statements': cycle(statements['train']['sentence']),
         'imperatives': cycle(imperatives['train']['sentence']),
-        'actions': cycle(actions['train']['sentence'])
+        'actions': cycle(actions['train']['sentence']),
+        'gerunds': cycle(gerunds['train']['sentence']),
     }
 
     test_vocab  = {
         'questions': cycle(questions['test']['sentence']),
         'statements': cycle(statements['test']['sentence']),
         'imperatives': cycle(imperatives['test']['sentence']),
-        'actions': cycle(actions['test']['sentence'])
+        'actions': cycle(actions['test']['sentence']),
+        'gerunds': cycle(gerunds['test']['sentence']),
     }
 
     train_ds = gen_phrases('grammar.yaml', 10000, train_vocab)
