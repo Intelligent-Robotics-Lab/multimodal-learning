@@ -57,7 +57,7 @@ Generate a tree of of components, excluding phrases
 Lazy iterate through the tree, generating text where needed
 """
 
-dynamic_wildcards = set(['phrase', 'that-phrase', 'question', 'imp', 'action', 'action-ing', 'pronoun-subj-s', 'pronoun-subj-pl', 'pronoun-obj'])
+dynamic_wildcards = set(['phrase', 'question', 'imp', 'action', 'action-ing', 'pronoun-subj-s', 'pronoun-subj-pl', 'pronoun-obj'])
 
 class Wildcard:
     def __init__(self, tag: str):
@@ -98,48 +98,59 @@ class Phrase:
 
     def expand(self, recursion_depth=0) -> Iterable[Phrase]:
         # print(f'Expanding {self.template}, recursion depth {recursion_depth}')
-        component_wildcards = [x for x in self.wildcards if not x.dynamic]
-        base_wildcards = [x for x in self.wildcards if x.dynamic]
-        if len(component_wildcards) == 0:
-            for w in base_wildcards:
-                if w.name == 'imp':
-                    yield from (self.replace(w, f'"{i}"') for i in self.vocab["imperatives"])
-                elif w.name == 'question':
-                    yield from (self.replace(w, f'"{q}"') for q in self.vocab["questions"])
-                elif w.name == 'phrase':
-                    yield from (self.replace(w, f'"{s}"') for s in self.vocab["statements"])
-                elif w.name == 'action':
-                    yield from (self.replace(w, f' {a}') for a in self.vocab["actions"])
-                elif w.name == 'action-ing':
-                    yield from (self.replace(w, f' {a}') for a in self.vocab["gerunds"])
-
-            
-            yield from cycle([self])
-        else:
-            component = self.grammar[component_wildcards[0].name]
-            subbed_templates = (self.replace(component_wildcards[0], s) for s in component.enumerate())
-            # having enumerated the first wildcard, we can now enumerate the rest
-            enumerated_templates = cycle(t.expand(recursion_depth=recursion_depth+1) for t in subbed_templates)
-            for t in enumerated_templates:
-                yield next(t)
+        def get_replacements(wildcard: Wildcard) -> Iterable[Phrase]:
+            if wildcard.dynamic:
+                if wildcard.name == 'imp':
+                    yield from (f'"{s}"' for s in self.vocab["imperatives"])
+                elif wildcard.name == 'question':
+                    yield from (f'"{s}"' for s in self.vocab["questions"])
+                elif wildcard.name == 'phrase':
+                    yield from (f'"{s}"' for s in self.vocab["statements"])
+                elif wildcard.name == 'action':
+                    yield from (f' {s}' for s in self.vocab["actions"])
+                elif wildcard.name == 'action-ing':
+                    yield from (f' {s}' for s in self.vocab["gerunds"])
+                else:
+                    yield from cycle([self])
+            else:
+                component = self.grammar[wildcard.name]
+                yield from component.enumerate(recursion_depth=recursion_depth)
+        
+        replacements = [get_replacements(wildcard) for wildcard in self.wildcards]
+        while True:
+            phrase = self
+            # print("Subbing:")
+            # print(phrase)
+            for i, wildcard in enumerate(self.wildcards):
+                replacement = next(replacements[i])
+                # print(f'Phrase: {phrase} wildcard: {wildcard.name} replacement: {replacement}')
+                phrase = phrase.replace(wildcard, replacement)
+                # print(f'Index {i}: {phrase}')
+            yield phrase
 
 class Component:
     registry = {}
     def __init__(self, name: str, parse: str, sentences: List[str], vocab: Dict):
         self.name = name
         self.parse = parse
-        self.sentences = shuffle(sentences)
+        self.sentences = sentences
         self.vocab = vocab
         Component.registry[name] = self
 
     def __str__(self):
         return f'{self.name} ({self.parse}): {self.sentences}'
 
-    def enumerate(self, num_examples: int = 1) -> Iterable[str]:
+    def enumerate(self, num_examples: int = 1, recursion_depth=0) -> Iterable[str]:
         templates = [Phrase(s, self.parse, Component.registry, self.vocab) for s in self.sentences]
-        template_expansions = cycle((cycle(t.expand()) for t in templates))
-        for t in template_expansions:
-            yield next(t)
+        template_expansions = [(t.expand(recursion_depth=recursion_depth+1)) for t in templates]
+        # print(len(template_expansions))
+        while True:
+            for i, t in enumerate(template_expansions):
+                n = next(t)
+                # if recursion_depth == 1:
+                # print(f'depth = {recursion_depth}, n = {n}')
+                yield n
+            # print('done')
 
 def strip(phrase: Phrase) -> Phrase:
     return Phrase(phrase.template.replace('  ', ' ').strip(), phrase.parse.replace('  ', ' '), phrase.grammar, phrase.vocab)
@@ -193,7 +204,7 @@ def gen_phrases(grammar_file: str, num_examples: int, vocab: Dict) -> List[str]:
         series = (strip(p) for p in series)
         for i in range(num_examples // len(root_components)):
             phrases.append(next(series))
-            print(phrases[-1])
+            # print(phrases[-1])
 
     dataset = [{'sentence': p.template, 'parse': p.parse} for p in phrases]
     dataset = Dataset.from_list(dataset)
@@ -220,7 +231,6 @@ if __name__ == '__main__':
         first_word = x['sentence'].split(' ')[0]
         gerund = getInflection(first_word, tag='VBG')[0]
         x['sentence'] = x['sentence'].replace(first_word, gerund, 1)
-        print(x['sentence'])
         return x
 
     gerunds = actions.map(inflect)    
@@ -242,6 +252,8 @@ if __name__ == '__main__':
     }
 
     train_ds = gen_phrases('grammar.yaml', 10000, train_vocab)
+    # for sample in train_ds:
+    #     print(sample['sentence'])
     test_ds = gen_phrases('grammar.yaml', 1000, test_vocab)
 
     dataset = datasets.DatasetDict({'train': train_ds, 'test': test_ds})

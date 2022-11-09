@@ -52,7 +52,7 @@ def label_sentence(sentence: str):
     #             label.append(0)
 
 tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-dataset = datasets.load_from_disk('../data/dataset').shuffle()
+dataset = datasets.load_from_disk('../data/dataset-split')["train"].shuffle()
 
 def preprocess(sample):
     sentence = sample['sentence']
@@ -82,6 +82,11 @@ def preprocess(sample):
 # print(label_sentence("if they said \"Oh, May, she's such a tattletale.\" then say to the customer \"I have a weakness for coffee.\""))
 
 dataset = dataset.map(preprocess).train_test_split(test_size=0.1)
+
+# for sentence in dataset['train']:
+#     if sentence['sentence'].startswith('say to'):
+#         print(sentence['sentence'])
+
 # print(dataset[0])
 data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
 model = AutoModelForTokenClassification.from_pretrained("bert-base-uncased", num_labels=4)
@@ -89,8 +94,8 @@ training_args = TrainingArguments(
     output_dir="../data/results",
     evaluation_strategy="epoch",
     learning_rate=2e-5,
-    per_device_train_batch_size=16,
-    per_device_eval_batch_size=16,
+    per_device_train_batch_size=128,
+    per_device_eval_batch_size=128,
     num_train_epochs=2,
     weight_decay=0.01,
 )
@@ -105,7 +110,7 @@ trainer = Trainer(
 )
 
 trainer.train()
-model.save_pretrained('../data/model')
+model.save_pretrained('../models/model')
 
 
 class AnonymizationPipeline(TokenClassificationPipeline):
@@ -133,7 +138,7 @@ class AnonymizationPipeline(TokenClassificationPipeline):
 
 
 
-pipe = TokenClassificationPipeline(model=model, tokenizer=tokenizer, device=0)
+pipe = AnonymizationPipeline(model=model, tokenizer=tokenizer, device=0)
 
 # def postprocess(sample):
 #     out = ""

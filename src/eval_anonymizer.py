@@ -7,7 +7,7 @@ from transformers.pipelines.token_classification import TokenClassificationPipel
 
 tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")\
 
-model = AutoModelForTokenClassification.from_pretrained("./model")
+model = AutoModelForTokenClassification.from_pretrained("../models/model")
 
 class AnonymizationPipeline(TokenClassificationPipeline):
     def __init__(self, **kwargs):
@@ -25,7 +25,7 @@ class AnonymizationPipeline(TokenClassificationPipeline):
                 result += entity["word"] + " "
             elif entity["entity_group"] == "LABEL_1":
                 if not in_quote:
-                    result = result + "\""
+                    result = result + "\" "
                     in_quote = True
                 result += entity["word"] + " "
         if in_quote:
@@ -40,5 +40,5 @@ print(pipe(["Say hello to the customer",
 "next ask them whether they want cheese",
 "ask them if they want any other toppings",
 "then tell them to go to the payment counter",
-"Say to the customer welcome to starbucks what can i get you",
+"say to the customer welcome to starbucks what can i get you",
 "ask the customer how is your day going"]))

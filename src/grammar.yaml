@@ -4,7 +4,7 @@ root:
     sentences:
       - '{request} say {$1:phrase} to {person-obj}'
       - '{request} say {$1:phrase}'
-      - '{request} say {$1:phrase} to {person-obj}'
+      - '{request} say to {person-obj} {$1:phrase}'
       - '{request} tell {person-obj} {$1:phrase}'
       # - 'tell {person-obj} that {$1:that-phrase}'
   - name: 'action'
@@ -15,6 +15,7 @@ root:
     parse: 'ask($1)'
     sentences:
       - '{request} ask {person-obj} {$1:question}'
+      - '{request} ask {$1:question}'
   - name: 'imperative'
     parse: 'say($1)'
     sentences:
@@ -26,6 +27,8 @@ root:
     sentences:
       - 'if {person-subj-s} {$1:says-s} then {$2:say}'
       - 'if {person-subj-pl} {$1:says-pl} then {$2:say}'
+      - 'if {person-subj-s} {$1:says-s} then {$2:ask}'
+      - 'if {person-subj-pl} {$1:says-pl} then {$2:ask}'
       - 'if {person-subj-s} {$1:says-s} then {$2:imperative}'
       - 'if {person-subj-pl} {$1:says-pl} then {$2:imperative}'
   - name: 'label'

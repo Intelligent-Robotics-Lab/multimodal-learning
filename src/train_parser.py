@@ -12,7 +12,7 @@ from transformers import (Seq2SeqTrainer, Seq2SeqTrainingArguments,
 dataset = datasets.load_from_disk('../data/dataset-split').shuffle()
 tokenizer: T5Tokenizer = T5Tokenizer.from_pretrained("t5-base", model_max_length=128)
 model = T5ForConditionalGeneration.from_pretrained("t5-base")
-custom_token_ids = tokenizer.encode('if(says([phrase_0]),say([phrase_1])) resolve() ask() say() label()', return_tensors='pt')
+custom_token_ids = tokenizer.encode('if(says([phrase_0]),say([phrase_1],ask([phrase_2]))) resolve() ask() say() label()', return_tensors='pt')
 
 class ParserTrainer(Seq2SeqTrainer):
     def prediction_step(
@@ -104,4 +104,4 @@ trainer = ParserTrainer(
 )
 trainer.train()
 
-model.save_pretrained('../data/parse-model')
+model.save_pretrained('../models/parse-model')
