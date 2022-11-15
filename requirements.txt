@@ -1,0 +1,6 @@
+transformers >= 4.23
+py_trees
+gdown
+datasets
+evaluate
+lemminflect
