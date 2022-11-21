@@ -2,7 +2,7 @@ from __future__ import annotations
 from sklearn.utils import shuffle
 import yaml
 import datasets
-from datasets import Dataset
+from datasets import Dataset, concatenate_datasets
 import re
 from itertools import cycle
 from typing import Dict, Iterable, List
@@ -17,19 +17,18 @@ def preprocess(x):
     x['sentence'] = x['sentence'].replace('?', '')
     return x
 
-
-
-def load_questions():
-    dataset = datasets.load_from_disk('../data/daily_dialog_questions')
-    dataset = dataset.filter(lambda x: x['sentence'].count(' ') > 0 and x['sentence'].count('"') == 0)
-    dataset = dataset.map(preprocess)
-    return dataset
-
-def load_statements():
-    dataset = datasets.load_from_disk('../data/daily_dialog_statements')
-    dataset = dataset.filter(lambda x: x['sentence'].count(';') == 0 and x['sentence'].count('"') == 0)
-    dataset = dataset.map(preprocess)
-    return dataset
+def load_daily_dialog():
+    dataset = datasets.load_from_disk('../data/daily_dialog')
+    questions = dataset['questions']
+    statements = dataset['statements']
+    whether_questions = dataset['whether_questions']
+    questions = questions.filter(lambda x: x['sentence'].count(' ') > 0 and x['sentence'].count('"') == 0)
+    questions = questions.map(preprocess)
+    statements = statements.filter(lambda x: x['sentence'].count(';') == 0 and x['sentence'].count('"') == 0)
+    statements = statements.map(preprocess)
+    whether_questions = whether_questions.filter(lambda x: x['sentence'].count(' ') > 0 and x['sentence'].count('"') == 0)
+    whether_questions = whether_questions.map(preprocess)
+    return questions, statements, whether_questions
 
 def load_imperatives():
     dataset = datasets.load_dataset("text", data_files="../data/imperatives.txt")["train"]
@@ -43,6 +42,7 @@ def load_imperatives():
 def load_actions():
     dataset = datasets.load_dataset("text", data_files="../data/actions.txt")["train"]
     dataset = dataset.rename_column('text', 'sentence')
+    dataset = dataset.filter(lambda x: x['sentence'].count('"') == 0)
     dataset = dataset.map(preprocess)
     return dataset
 
@@ -223,8 +223,10 @@ def gen_phrases(grammar_file: str, num_examples: int, vocab: Dict) -> List[str]:
     
 
 if __name__ == '__main__':
-    questions = load_questions().shuffle(seed=1).train_test_split(test_size=0.2)
-    statements = load_statements().shuffle(seed=1).train_test_split(test_size=0.2)
+    questions, statements, whether_questions = load_daily_dialog()
+    questions = questions.shuffle(seed=1).train_test_split(test_size=0.2)
+    statements = statements.shuffle(seed=1).train_test_split(test_size=0.2)
+    whether_questions = whether_questions.shuffle(seed=1).train_test_split(test_size=0.2)
     imperatives = load_imperatives().shuffle(seed=1).train_test_split(test_size=0.2)
     actions = load_actions().shuffle(seed=1).train_test_split(test_size=0.2)
     def inflect(x):
@@ -233,10 +235,15 @@ if __name__ == '__main__':
         x['sentence'] = x['sentence'].replace(first_word, gerund, 1)
         return x
 
+    def combine_iters(x, y):
+        while True:
+            yield next(x)
+            yield next(y)
+
     gerunds = actions.map(inflect)    
 
     train_vocab  = {
-        'questions': cycle(questions['train']['sentence']),
+        'questions': combine_iters(cycle(questions['train']['sentence']), cycle(whether_questions['train']['sentence'])),
         'statements': cycle(statements['train']['sentence']),
         'imperatives': cycle(imperatives['train']['sentence']),
         'actions': cycle(actions['train']['sentence']),
@@ -252,8 +259,8 @@ if __name__ == '__main__':
     }
 
     train_ds = gen_phrases('grammar.yaml', 10000, train_vocab)
-    # for sample in train_ds:
-    #     print(sample['sentence'])
+    for sample in list(train_ds)[:100]:
+        print(sample["sentence"])
     test_ds = gen_phrases('grammar.yaml', 1000, test_vocab)
 
     dataset = datasets.DatasetDict({'train': train_ds, 'test': test_ds})

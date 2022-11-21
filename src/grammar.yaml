@@ -25,12 +25,10 @@ root:
   - name: 'if'
     parse: 'if($1,$2)'
     sentences:
-      - 'if {person-subj-s} {$1:says-s} then {$2:say}'
-      - 'if {person-subj-pl} {$1:says-pl} then {$2:say}'
-      - 'if {person-subj-s} {$1:says-s} then {$2:ask}'
-      - 'if {person-subj-pl} {$1:says-pl} then {$2:ask}'
-      - 'if {person-subj-s} {$1:says-s} then {$2:imperative}'
-      - 'if {person-subj-pl} {$1:says-pl} then {$2:imperative}'
+      - 'if {person-subj-s} {$1:says-s} then {$2:generic-say}'
+      - 'if {person-subj-pl} {$1:says-pl} then {$2:generic-say}'
+      - '{$2:generic-say} if {person-subj-s} {$1:says-s}'
+      - '{$2:generic-say} if {person-subj-pl} {$1:says-pl}'
   - name: 'label'
     parse: 'label($1)'
     sentences:
@@ -38,6 +36,12 @@ root:
       - "it's called {$1:action-ing}"
       - '{$1:action-ing}'
 components:
+  - name: 'generic-say'
+    parse: '$1'
+    sentences:
+      - '{$1:say}'
+      - '{$1:ask}'
+      - '{$1:imperative}'
   - name: 'request'
     parse: ''
     sentences:

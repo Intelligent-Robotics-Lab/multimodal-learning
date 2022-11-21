@@ -52,7 +52,7 @@ def label_sentence(sentence: str):
     #             label.append(0)
 
 tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-dataset = datasets.load_from_disk('../data/dataset-split')["train"].shuffle()
+dataset = datasets.load_from_disk('../data/dataset-split')
 
 def preprocess(sample):
     sentence = sample['sentence']
@@ -81,7 +81,7 @@ def preprocess(sample):
 # tokens = tokenizer.convert_ids_to_tokens(ids)
 # print(label_sentence("if they said \"Oh, May, she's such a tattletale.\" then say to the customer \"I have a weakness for coffee.\""))
 
-dataset = dataset.map(preprocess).train_test_split(test_size=0.1)
+dataset = dataset.map(preprocess)
 
 # for sentence in dataset['train']:
 #     if sentence['sentence'].startswith('say to'):
@@ -96,7 +96,7 @@ training_args = TrainingArguments(
     learning_rate=2e-5,
     per_device_train_batch_size=128,
     per_device_eval_batch_size=128,
-    num_train_epochs=2,
+    num_train_epochs=4,
     weight_decay=0.01,
 )
 
