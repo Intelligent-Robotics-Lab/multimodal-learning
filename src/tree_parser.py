@@ -1,6 +1,8 @@
-import py_trees
+from py_trees.behaviour import Behaviour
+from py_trees.trees import BehaviourTree
 from transformers import AutoTokenizer, AutoModelForTokenClassification, T5ForConditionalGeneration, T5Tokenizer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
+from .behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
 import torch
 
 class AnonymizationPipeline(TokenClassificationPipeline):
@@ -61,7 +63,74 @@ class TextParser:
         for key, value in subs.items():
             parse = parse.replace(key, value)
         return parse
+    
+class TreeParser(TextParser):    
+    def _extract_fn(self, parse: str):
+        function, body = parse.split('(', 1)
+        assert body[-1] == ')'
+        body = body[:-1]
+        parentheses = 0
+        result = ""
+        arguments = []
+        for char in body:
+            if char == '(':
+                parentheses += 1
+            elif char == ')':
+                parentheses -= 1
+
+            print(char, parentheses)
+            if parentheses == 0:
+                if char == ',':
+                    arguments.append(result.strip())
+                    result = ""
+                    continue
+            result += char
+        arguments.append(result.strip())
+        return function, arguments
+
+    def append_tree(self, sample: str, tree: BehaviourTree = None, current_node: Behaviour = None):
+        parse = self.parse(sample)
+        fn, args = self._extract_fn(parse)
+        if fn == 'resolve':
+            b = CustomBehavior(name=args[0])
+            return b
+        elif fn == 'if':
+            precondition = self.append_tree(args[0])
+            action = self.append_tree(args[1])
+            b = Conditional(precondition, action)
+            if tree is not None and current_node is not None:
+                tree.add_child(b, current_node)
+            return b
+        elif fn == 'ask':
+            b = AskBehavior(name='ask', text=args[0])
+            return b
+        elif fn == 'say':
+            b = SayBehavior(name='say', text=args[0])
+            
+            return b
+        elif fn == 'says':
+            b = PersonSays(name='says', text=args[0])
+            if tree is not None and current_node is not None:
+                if isinstance(current_node, Conditional) and len(current_node.children) == 0:
+                    current_node.add_child(b)
+                else:
+                    raise ValueError("Says must be a child of a conditional")
+            return b
+        elif fn == 'label':
+            b = CustomBehavior(name=args[0])
+            if tree is not None and current_node is not None:
+                b.add_child(current_node)
+                if not tree.replace_subtree(current_node.id, b):
+                    raise ValueError("Could not replace subtree")
+            else:
+                raise ValueError("Label requires an existing tree")
+            return b
+
+
+        
+            
 
 if __name__ == '__main__':
-    parser = TextParser()
-    print(parser.parse("if they say sandwich then ask them what meat they would like"))
+    parser = TreeParser()
+    parse = parser.parse("if they say sandwich then ask them what meat they would like")
+    print(parser._extract_fn(parse))
