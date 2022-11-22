@@ -2,7 +2,7 @@ from py_trees.behaviour import Behaviour
 from py_trees.trees import BehaviourTree
 from transformers import AutoTokenizer, AutoModelForTokenClassification, T5ForConditionalGeneration, T5Tokenizer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
-from .behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
+from behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
 import torch
 
 class AnonymizationPipeline(TokenClassificationPipeline):
@@ -46,6 +46,8 @@ class TextParser:
         self.custom_token_ids = self.tokenizer.encode('if(says([phrase_0]),say([phrase_1])) resolve() ask() say() label()', return_tensors='pt')
 
     def parse(self, sample: str):
+        if not sample:
+            raise ValueError("Sample is empty")
         sentence_anon, subs = self.pipe(sample)
         model_inputs = self.tokenizer(
             sentence_anon,
@@ -58,8 +60,8 @@ class TextParser:
         def allowed_tokens_fn(batch_id, input_ids):
             return unique[batch_id]
         output_ids = self.model.generate(model_inputs.to('cuda'), max_length=30, prefix_allowed_tokens_fn=allowed_tokens_fn, num_beams=1)
-        print(output_ids)
         parse = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        print(parse)
         for key, value in subs.items():
             parse = parse.replace(key, value)
         return parse
@@ -77,8 +79,6 @@ class TreeParser(TextParser):
                 parentheses += 1
             elif char == ')':
                 parentheses -= 1
-
-            print(char, parentheses)
             if parentheses == 0:
                 if char == ',':
                     arguments.append(result.strip())
@@ -93,6 +93,8 @@ class TreeParser(TextParser):
         fn, args = self._extract_fn(parse)
         if fn == 'resolve':
             b = CustomBehavior(name=args[0])
+            if current_node:
+                current_node.add_child(b)
             return b
         elif fn == 'if':
             precondition = self.append_tree(args[0])
@@ -102,14 +104,17 @@ class TreeParser(TextParser):
                 tree.add_child(b, current_node)
             return b
         elif fn == 'ask':
-            b = AskBehavior(name='ask', text=args[0])
+            b = AskBehavior(text=args[0])
+            if current_node:
+                current_node.add_child(b)
             return b
         elif fn == 'say':
-            b = SayBehavior(name='say', text=args[0])
-            
+            b = SayBehavior(text=args[0])
+            if current_node:
+                current_node.add_child(b)
             return b
         elif fn == 'says':
-            b = PersonSays(name='says', text=args[0])
+            b = PersonSays(text=args[0])
             if tree is not None and current_node is not None:
                 if isinstance(current_node, Conditional) and len(current_node.children) == 0:
                     current_node.add_child(b)

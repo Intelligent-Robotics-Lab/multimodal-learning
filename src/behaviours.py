@@ -2,18 +2,23 @@ from py_trees.behaviour import Behaviour
 from py_trees.composites import Sequence, Selector
 from py_trees.blackboard import Client
 from py_trees.common import Status, Access
+from lemminflect import getInflection
 
-class LearnableBehaviour:
+class Describable:
+    def __init__(self, *args, description : str = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.description = description
+
+class LearnableBehaviour(Describable):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.learned = False
 
-class Approach(Behaviour):
+class Approach(Describable, Behaviour):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(description='a person approaches me', *args, **kwargs)
         self.client = Client(name=self.name)
         self.client.register_key(key="approached", access=Access.READ)
-        self.description = 'a person approaches me'
     
     def update(self):
         if self.client.approached:
@@ -23,7 +28,10 @@ class Approach(Behaviour):
 
 class CustomBehavior(LearnableBehaviour, Sequence):
     def __init__(self, name, **kwargs):
-        super().__init__(name, memory=True, **kwargs)
+        super().__init__(name, description=f"I {name}", memory=True, **kwargs)
+        first_word = name.split(' ')[0]
+        gerund = getInflection(first_word, tag='VBG')[0]
+        self.gerund = name.replace(first_word, gerund, 1)
 
 class Conditional(LearnableBehaviour, Selector):
     def __init__(self, state, action, **kwargs):
@@ -35,7 +43,7 @@ class Conditional(LearnableBehaviour, Selector):
     def add_else(self, action):
         self.add_child(action)
 
-class AskBehavior(Behaviour):
+class AskBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):
         super().__init__(name='Ask', **kwargs)
         self.text = text
@@ -46,7 +54,7 @@ class AskBehavior(Behaviour):
         self.blackboard.speech = self.text
         return Status.SUCCESS
 
-class SayBehavior(Behaviour):
+class SayBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):
         super().__init__(name='Say', **kwargs)
         self.text = text
@@ -57,7 +65,7 @@ class SayBehavior(Behaviour):
         self.blackboard.speech = self.text
         return Status.SUCCESS
 
-class PersonSays(Behaviour):
+class PersonSays(Describable, Behaviour):
     def __init__(self, text, **kwargs):
         super().__init__(name='Person Says', **kwargs)
         if text == '':
