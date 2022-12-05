@@ -7,6 +7,7 @@ from lemminflect import getInflection
 class Describable:
     def __init__(self, *args, description : str = None, **kwargs):
         super().__init__(*args, **kwargs)
+        print("Description: ", description)
         self.description = description
 
 class LearnableBehaviour(Describable):
@@ -45,7 +46,7 @@ class Conditional(LearnableBehaviour, Selector):
 
 class AskBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):
-        super().__init__(name='Ask', **kwargs)
+        super().__init__(name='Ask', description=f'I ask {text}', **kwargs)
         self.text = text
         self.blackboard = Client()
         self.blackboard.register_key(key="speech", access=Access.WRITE)
@@ -56,7 +57,7 @@ class AskBehavior(Describable, Behaviour):
 
 class SayBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):
-        super().__init__(name='Say', **kwargs)
+        super().__init__(name='Say', description=f"I say {text}", **kwargs)
         self.text = text
         self.blackboard = Client()
         self.blackboard.register_key("speech", Access.WRITE)

@@ -4,7 +4,7 @@ from py_trees.behaviour import Behaviour
 from py_trees.display import ascii_tree
 from behaviours import Conditional, Approach, AskBehavior, SayBehavior, PersonSays, CustomBehavior, LearnableBehaviour
 from tree_parser import TreeParser
-
+from sentence_classifier import SentenceType
 
 class TaskLearner:
     def __init__(self, root : Behaviour = None):
@@ -26,11 +26,6 @@ class TaskLearner:
         # No children are unlearned, so return the parent
         return parent
 
-    def test_gen(self):
-        while True:
-            response = yield f'How do I {self.root.name}?'
-            print(f"Response: {response}")
-
     def generate_prompts(self):
         while True:
             print(ascii_tree(self.tree.root))
@@ -42,8 +37,13 @@ class TaskLearner:
             if isinstance(unlearned, CustomBehavior):
                 if unlearned == self.root:
                     response = yield f'What should I do after {self.root.children[-1].description}?'
-                    print(f"Response: {response}")
-                    self.parser.append_tree(response, self.tree, unlearned)
+                    # print(f"Response: {response}")
+                    if isinstance(response, str):
+                        self.parser.append_tree(response, self.tree, unlearned)
+                    elif isinstance(response, SentenceType):
+                        if response == SentenceType.DONE:
+                            self.root.learned = True
+                            yield "Okay, I've learned everything I need to know"
                 else:
                     if len(unlearned.children) == 0:
                         # Newly created behavior
@@ -52,8 +52,12 @@ class TaskLearner:
                     else:
                         # Existing behavior
                         response = yield f'What is the next step of {unlearned.gerund}?'
-                        print(f"Response: {response}")
-                        self.parser.append_tree(response, self.tree, unlearned)
-            # Empty return to send
-            yield None
+                        # print(f"Response: {response}")
+                        if isinstance(response, str):
+                            self.parser.append_tree(response, self.tree, unlearned)
+                        elif isinstance(response, SentenceType):
+                            if response == SentenceType.DONE:
+                                unlearned.learned = True
+                                yield f"Okay, I've learned how to {unlearned.name}"
+
 
