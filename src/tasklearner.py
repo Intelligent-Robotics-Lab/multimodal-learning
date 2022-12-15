@@ -6,6 +6,11 @@ from behaviours import Conditional, Approach, AskBehavior, SayBehavior, PersonSa
 from tree_parser import TreeParser
 from sentence_classifier import SentenceType
 
+class Prompt:
+    def __init__(self, text: str, needs_response: bool):
+        self.text = text
+        self.needs_response = needs_response
+
 class TaskLearner:
     def __init__(self, root : Behaviour = None):
         if root is None:
@@ -36,28 +41,29 @@ class TaskLearner:
             print(f"Unlearned: {unlearned.name}")
             if isinstance(unlearned, CustomBehavior):
                 if unlearned == self.root:
-                    response = yield f'What should I do after {self.root.children[-1].description}?'
+                    response = yield Prompt(f'What should I do after {self.root.children[-1].description}?', True)
                     # print(f"Response: {response}")
                     if isinstance(response, str):
                         self.parser.append_tree(response, self.tree, unlearned)
                     elif isinstance(response, SentenceType):
                         if response == SentenceType.DONE:
                             self.root.learned = True
-                            yield "Okay, I've learned everything I need to know"
+                            yield Prompt("Okay, I've learned everything I need to know", False)
+                            raise StopIteration()
                 else:
                     if len(unlearned.children) == 0:
                         # Newly created behavior
-                        response = yield f'How do I {unlearned.name}?'
+                        response = yield Prompt(f'How do I {unlearned.name}?', True)
                         self.parser.append_tree(response, self.tree, unlearned)
                     else:
                         # Existing behavior
-                        response = yield f'What is the next step of {unlearned.gerund}?'
+                        response = yield Prompt(f'What is the next step of {unlearned.gerund}?', True)
                         # print(f"Response: {response}")
                         if isinstance(response, str):
                             self.parser.append_tree(response, self.tree, unlearned)
                         elif isinstance(response, SentenceType):
                             if response == SentenceType.DONE:
                                 unlearned.learned = True
-                                yield f"Okay, I've learned how to {unlearned.name}"
+                                yield Prompt(f"Okay, I've learned how to {unlearned.name}", False)
 
 

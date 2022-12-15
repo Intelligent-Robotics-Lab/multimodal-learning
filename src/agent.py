@@ -4,9 +4,11 @@ from sklearn import svm
 import numpy as np
 from threading import Event
 import py_trees
-from furhat_remote_api import FurhatRemoteAPI
+import asyncio
+# from furhat_remote_api import FurhatRemoteAPI
+from furhat import Furhat
 import readline
-from tasklearner import TaskLearner
+from tasklearner import TaskLearner, Prompt
 from sentence_classifier import SentenceClassifier, SentenceType
 
 class DialogAgent:
@@ -14,84 +16,72 @@ class DialogAgent:
         self.task_tree = TaskLearner()
         self.sentence_classifier = SentenceClassifier()
 
-    def say(self, phrase: str):
+    async def say(self, phrase: str):
         pass
 
-    def listen(self) -> str:
+    async def listen(self) -> str:
         pass
 
-    def await_yes(self, prompt="Ok, let me know when you're ready"):
+    async def await_yes(self, prompt="Ok, let me know when you're ready"):
         affirmative = False
         while not affirmative:
-            speech = self.listen()
+            speech = await self.listen()
             # print(speech)
             if speech != '':
                 affirmative = self.sentence_classifier.classify_ready(speech) == SentenceType.YES
                 if not affirmative:
-                    self.say(prompt)
+                    await self.say(prompt)
 
-    def introduce(self):
+    async def introduce(self):
         introduction =  """
 Hello, my name is Furhat. I am a social robot that can learn to interact with people.
 You can teach me new tasks by describing them to me. I will ask some questions about how to behave in different situations.
 I will try to understand what you say, and do my best to follow your instructions.
 Are you ready to begin?"""
-        self.say(introduction)
-        self.await_yes()
-        self.say("Okay, let's begin!")
+        await self.say(introduction)
+        await self.await_yes()
+        await self.say("Okay, let's begin!")
 
-    def learn_approach(self):
-        self.say("What should I do when a person first approaches me?")
-        result = self.listen()
-
-    def run(self):
-        self.introduce()
+    async def run(self):
+        await self.introduce()
         gen = self.task_tree.generate_prompts()
         prompt = next(gen)
-        while True:
-            self.say(prompt)
-            response = self.listen()
-            sentence_type = self.sentence_classifier.classify_next(response)
-            while sentence_type == SentenceType.UNCERTAIN:
-                response = self.listen()
+        if prompt.needs_response:
+            while True:
+                await self.say(prompt.text)
+                response = await self.listen()
                 sentence_type = self.sentence_classifier.classify_next(response)
-            if sentence_type == SentenceType.DONE:
-                prompt = gen.send(sentence_type)
-            else:
-                print(f"Response: {response}")
-                print(f"Type: {sentence_type}")
-                prompt = gen.send(response)
+                while sentence_type == SentenceType.UNCERTAIN:
+                    response = await self.listen()
+                    sentence_type = self.sentence_classifier.classify_next(response)
+                if sentence_type == SentenceType.DONE:
+                    prompt = gen.send(sentence_type)
+                else:
+                    print(f"Response: {response}")
+                    print(f"Type: {sentence_type}")
+                    prompt = gen.send(response)
 
-class FurhatAgent(DialogAgent):
-    def __init__(self, ip: str):
-        super().__init__()
-        self.furhat = FurhatRemoteAPI(ip)
-        print(self.furhat.get_users())
-        self.furhat.attend(user='CLOSEST')
-
-    def say(self, phrase: str):
-        self.furhat.say(text=phrase, blocking=True)
-        print(self.furhat.get_users())
-
-    def listen(self):
-        msg = ''
-        while msg == '':
-            resp = self.furhat.listen()
-            if resp.success:
-                msg = resp.message
-            else:
-                raise ValueError('Failed to listen')
-        return msg
+class FurhatAgent(Furhat, DialogAgent):
+    def __init__(self, host='localhost', port=80):
+        Furhat.__init__(self, host, port)
+        DialogAgent.__init__(self)
 
 class VirtualAgent(DialogAgent):
-    def say(self, phrase: str):
+    async def say(self, phrase: str):
         print("Robot says:", phrase)
 
-    def listen(self):
+    async def listen(self):
         return input("Human says: ")
 
+async def main():
+    LIVE = True
+    if LIVE:
+        agent = FurhatAgent('141.210.193.186')
+        async with agent.connect():
+            await agent.run()
+    else:
+        agent = VirtualAgent()
+        await agent.run()
         
 if __name__ == '__main__':
-    agent = VirtualAgent()
-    # agent = FurhatAgent('141.210.193.186')
-    agent.run()
+    asyncio.run(main())
