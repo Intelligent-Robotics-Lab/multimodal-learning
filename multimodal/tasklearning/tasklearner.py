@@ -2,9 +2,9 @@ from py_trees.trees import BehaviourTree
 from py_trees.composites import Sequence
 from py_trees.behaviour import Behaviour
 from py_trees.display import ascii_tree
-from behaviours import Conditional, Approach, AskBehavior, SayBehavior, PersonSays, CustomBehavior, LearnableBehaviour
-from tree_parser import TreeParser
-from sentence_classifier import SentenceType
+from multimodal.tasklearning.behaviours import Conditional, Approach, AskBehavior, SayBehavior, PersonSays, CustomBehavior, LearnableBehaviour
+from multimodal.tasklearning.tree_parser import TreeParser
+from multimodal.nlp.sentence_classifier import SentenceType
 
 class Prompt:
     def __init__(self, text: str, needs_response: bool):

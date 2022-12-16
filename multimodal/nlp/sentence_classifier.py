@@ -2,12 +2,18 @@ import sentence_transformers
 import torch
 import datasets
 from enum import Enum
+from multimodal.data.dataset import get_dataset
+from multimodal.utils import get_model_path
+# from importlib_resources import files, as_file
 
 yes_answers = ['yes', 'yeah', 'sure', 'ok', 'okay', 'yes I am ready', 'sounds good', 'I am', "yes I am", "I'm ready", 'let\'s go']
 no_answers = ['no', 'not yet', 'not really', 'not quite', 'no I am not', 'no, give me a minute', 'give me a minute', 'I am not ready yet', "I'm not sure", "hang on", 'I would like a moment']
 done_answers = ['all done', 'you are finished', 'then you are done', 'you are done', "that's all", "that's it", "there is no next step", "nothing"]
 uncertain_answers = ["hmm", 'I don\'t know', 'I\'m not sure', 'let me think', 'give me a minute']
-instructions = datasets.load_from_disk('../data/dataset-split')
+
+
+instructions = get_dataset() 
+model_path = get_model_path('sentence-classifier.pt')
 
 def train():
     batch_size = 16
@@ -61,7 +67,7 @@ def train():
         
         train_loss /= len(train_ds) * batch_size
         print('Epoch: {}. Loss: {}. Accuracy: {}'.format(i, train_loss, correct / total))
-    torch.save(model.state_dict(), '../models/sentence-classifier.pt')
+    torch.save(model.state_dict(), model_path)
 
 class SentenceType(Enum):
     YES = 0
@@ -73,7 +79,7 @@ class SentenceType(Enum):
 class SentenceClassifier:
     def __init__(self):
         self.model = torch.nn.Linear(384, 5).to('cuda')
-        self.model.load_state_dict(torch.load('../models/sentence-classifier.pt'))
+        self.model.load_state_dict(torch.load(model_path))
         self.model.eval()
         self.embedding_model = sentence_transformers.SentenceTransformer('all-MiniLM-L6-v2')
     

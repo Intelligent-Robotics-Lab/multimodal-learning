@@ -1,15 +1,7 @@
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn import svm
-import numpy as np
-from threading import Event
-import py_trees
 import asyncio
-# from furhat_remote_api import FurhatRemoteAPI
 from furhat import Furhat
-import readline
-from tasklearner import TaskLearner, Prompt
-from sentence_classifier import SentenceClassifier, SentenceType
+from multimodal.tasklearning.tasklearner import TaskLearner, Prompt
+from multimodal.nlp.sentence_classifier import SentenceClassifier, SentenceType
 
 class DialogAgent:
     def __init__(self):

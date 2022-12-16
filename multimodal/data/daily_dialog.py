@@ -4,6 +4,7 @@ import re
 import random
 from typing import Dict, List
 from lemminflect import getInflection
+from .dataset import get_dataset_path
 
 raw_dataset = load_dataset("daily_dialog")["train"]
 
@@ -76,8 +77,6 @@ def third_person_inflect(sample):
     sample["sentence"] = s
     return sample
 
-
-
 dataset = raw_dataset
 dataset = dataset.map(split_dialogs, batched=True, remove_columns=dataset.column_names)
 dataset = dataset.map(normalize)
@@ -89,4 +88,4 @@ questions = dataset.filter(lambda x: x["sentence"].endswith("?")).filter(is_ques
 whether_questions = questions.filter(is_do_question).map(third_person_inflect)
 statements = dataset.filter(lambda x: x["sentence"].endswith(".")).filter(lambda x: x["sentence"].count("...") == 0)
 dataset = DatasetDict({"questions": questions, "statements": statements, "whether_questions": whether_questions})
-dataset.save_to_disk("../data/daily_dialog")
+dataset.save_to_disk(str(get_dataset_path("daily_dialog")))

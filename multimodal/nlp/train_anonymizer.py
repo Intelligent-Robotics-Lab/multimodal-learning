@@ -1,10 +1,10 @@
-from typing import overload
 import datasets
 from transformers import AutoTokenizer
-from tokenizers import Tokenizer
 from transformers import DataCollatorForTokenClassification
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
+from multimodal.data.dataset import get_dataset
+from multimodal.utils import get_model_path
 
 def label_sentence(sentence: str):
     label = []
@@ -33,26 +33,10 @@ def label_sentence(sentence: str):
 
     sentence = sentence.replace('"', '')
     return sentence, label
-        
 
-    # for t, i in zip(tokens, ids):
-    #     if t == '"':
-    #         if inquote:
-    #             inquote = False
-    #             label[-1] = 2
-    #         else:
-    #             inquote = True
-    #             beginquote = True
-    #     else:
-    #         filtered_ids.append(i)
-    #         if beginquote:
-    #             label.append(1)
-    #             beginquote = False
-    #         else:
-    #             label.append(0)
 
 tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-dataset = datasets.load_from_disk('../data/dataset-split')
+dataset = get_dataset()
 
 def preprocess(sample):
     sentence = sample['sentence']
@@ -76,18 +60,8 @@ def preprocess(sample):
     tokenized_inputs["masked_sentence"] = masked_sentence
     return tokenized_inputs
 
-    # tokenized_input = tokenizer(dataset[0]["sentence"])
-# ids = tokenized_input["input_ids"]
-# tokens = tokenizer.convert_ids_to_tokens(ids)
-# print(label_sentence("if they said \"Oh, May, she's such a tattletale.\" then say to the customer \"I have a weakness for coffee.\""))
-
 dataset = dataset.map(preprocess)
 
-# for sentence in dataset['train']:
-#     if sentence['sentence'].startswith('say to'):
-#         print(sentence['sentence'])
-
-# print(dataset[0])
 data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
 model = AutoModelForTokenClassification.from_pretrained("bert-base-uncased", num_labels=4)
 training_args = TrainingArguments(
@@ -110,7 +84,7 @@ trainer = Trainer(
 )
 
 trainer.train()
-model.save_pretrained('../models/model')
+model.save_pretrained(get_model_path("bert-model"))
 
 
 class AnonymizationPipeline(TokenClassificationPipeline):
@@ -140,16 +114,6 @@ class AnonymizationPipeline(TokenClassificationPipeline):
 
 pipe = AnonymizationPipeline(model=model, tokenizer=tokenizer, device=0)
 
-# def postprocess(sample):
-#     out = ""
-#     for word in sample:
-#         if word['entity'] == 'LABEL_0':
-#             out += word['word'] + ' '
-#     return tokenized_inputs
-
-# print(dataset["test"][0]["masked_sentence"])
-# print(pipe(dataset["test"][0]["masked_sentence"]))
-# print(pipe("if the individual says they would like coffee then tell them okay great"))
 print(pipe(["Say hello to the customer",
 "ask them what they would like to order",
 "if they say sandwich then ask them what meat they would like",

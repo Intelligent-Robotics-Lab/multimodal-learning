@@ -2,7 +2,7 @@ from py_trees.behaviour import Behaviour
 from py_trees.trees import BehaviourTree
 from transformers import AutoTokenizer, AutoModelForTokenClassification, T5ForConditionalGeneration, T5Tokenizer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
-from behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
+from multimodal.tasklearning.behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
 import torch
 
 class AnonymizationPipeline(TokenClassificationPipeline):

@@ -4,12 +4,13 @@ import datasets
 import evaluate
 import numpy as np
 import torch
-from datasets import Dataset
 from torch import nn
 from transformers import (Seq2SeqTrainer, Seq2SeqTrainingArguments,
                           T5ForConditionalGeneration, T5Tokenizer)
+from multimodal.data.dataset import get_dataset
+from multimodal.utils import get_model_path
 
-dataset = datasets.load_from_disk('../data/dataset-split').shuffle()
+dataset = get_dataset().shuffle()
 tokenizer: T5Tokenizer = T5Tokenizer.from_pretrained("t5-base", model_max_length=128)
 model = T5ForConditionalGeneration.from_pretrained("t5-base")
 custom_token_ids = tokenizer.encode('if(says([phrase_0]),say([phrase_1],ask([phrase_2]))) resolve() ask() say() label()', return_tensors='pt')
@@ -89,9 +90,6 @@ def compute_metrics(eval_preds):
     for pred, label, dpred, dlabel in zip(preds, labels, decoded_preds, decoded_labels):
         if dlabel != dpred:
             print(f'pred: {dpred}, label: {dlabel}')
-    #         trimmed_label = list(filter(lambda x: x != "<pad>", tokenizer.convert_ids_to_tokens(label)))
-    #         trimmed_pred = list(filter(lambda x: x != "<pad>", tokenizer.convert_ids_to_tokens(pred)))
-    #         print(f'pred: {trimmed_pred}, \nlabel: {trimmed_label}')
     result = metric.compute(predictions=decoded_preds, references=decoded_labels)
     return result
 
@@ -104,4 +102,4 @@ trainer = ParserTrainer(
 )
 trainer.train()
 
-model.save_pretrained('../models/parse-model')
+model.save_pretrained(get_model_path('parse-model'))

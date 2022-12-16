@@ -8,6 +8,16 @@ from itertools import cycle
 from typing import Dict, Iterable, List
 import random
 from lemminflect import getInflection
+from importlib_resources import files, as_file
+
+def get_dataset_path(name: str = 'dataset-split'):
+    dataset_path = files('multimodal') / 'data' / name
+    with as_file(dataset_path) as p:
+        return p
+
+def get_dataset(name: str = 'dataset-split'):
+    dataset = datasets.load_from_disk(str(get_dataset_path(name)))
+    return dataset
 
 def preprocess(x):
     x['sentence'] = x['sentence'].lower()
@@ -18,7 +28,7 @@ def preprocess(x):
     return x
 
 def load_daily_dialog():
-    dataset = datasets.load_from_disk('../data/daily_dialog')
+    dataset = get_dataset('daily_dialog')
     questions = dataset['questions']
     statements = dataset['statements']
     whether_questions = dataset['whether_questions']
@@ -31,7 +41,7 @@ def load_daily_dialog():
     return questions, statements, whether_questions
 
 def load_imperatives():
-    dataset = datasets.load_dataset("text", data_files="../data/imperatives.txt")["train"]
+    dataset = datasets.load_dataset("text", data_files=str(get_dataset_path("imperatives.txt")))["train"]
     dataset = dataset.rename_column('text', 'sentence')
     dataset = dataset.map(preprocess)
     def filter_imperatives(x):
@@ -40,16 +50,11 @@ def load_imperatives():
     return dataset
 
 def load_actions():
-    dataset = datasets.load_dataset("text", data_files="../data/actions.txt")["train"]
+    dataset = datasets.load_dataset("text", data_files=str(get_dataset_path("actions.txt")))["train"]
     dataset = dataset.rename_column('text', 'sentence')
     dataset = dataset.filter(lambda x: x['sentence'].count('"') == 0)
     dataset = dataset.map(preprocess)
     return dataset
-
-# questions = cycle(load_questions().shuffle()["sentence"])
-# statements = cycle(load_statements().shuffle()["sentence"])
-# imperatives = cycle(load_imperatives().shuffle()["sentence"])
-# actions = cycle(load_actions().shuffle()["sentence"])
 
 """
 Algorithm:
@@ -264,4 +269,4 @@ if __name__ == '__main__':
     test_ds = gen_phrases('grammar.yaml', 1000, test_vocab)
 
     dataset = datasets.DatasetDict({'train': train_ds, 'test': test_ds})
-    dataset.save_to_disk('../data/dataset-split')
+    dataset.save_to_disk(get_dataset_path('dataset-split'))

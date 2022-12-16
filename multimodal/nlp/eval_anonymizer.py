@@ -1,13 +1,15 @@
-from typing import overload
 import datasets
 from transformers import AutoTokenizer
 from tokenizers import Tokenizer
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
+from multimodal.utils import get_model_path
 
-tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")\
+tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 
-model = AutoModelForTokenClassification.from_pretrained("../models/model")
+model_path = get_model_path("bert-model")
+
+model = AutoModelForTokenClassification.from_pretrained(str(model_path))
 
 class AnonymizationPipeline(TokenClassificationPipeline):
     def __init__(self, **kwargs):
