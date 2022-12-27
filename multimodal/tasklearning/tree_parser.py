@@ -3,6 +3,7 @@ from py_trees.trees import BehaviourTree
 from transformers import AutoTokenizer, AutoModelForTokenClassification, T5ForConditionalGeneration, T5Tokenizer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
 from multimodal.tasklearning.behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
+from multimodal.utils import get_model_path
 import torch
 
 class AnonymizationPipeline(TokenClassificationPipeline):
@@ -19,7 +20,7 @@ class AnonymizationPipeline(TokenClassificationPipeline):
         for entity in entities:
             if entity["entity_group"] == "LABEL_0":
                 if in_quote:
-                    result += f'phrase_{i} '
+                    result += f'[phrase_{i}] '
                     substitutions[f'[phrase_{i}]'] = substitution.strip()
                     substitution = ""
                     i += 1
@@ -39,11 +40,13 @@ class AnonymizationPipeline(TokenClassificationPipeline):
 class TextParser:
     def __init__(self):
         bert_tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-        bert_model = AutoModelForTokenClassification.from_pretrained("../models/model")
+        bert_model = AutoModelForTokenClassification.from_pretrained(get_model_path("bert-model"))
         self.pipe = AnonymizationPipeline(model=bert_model, tokenizer=bert_tokenizer, device=0)
         self.tokenizer: T5Tokenizer = T5Tokenizer.from_pretrained("t5-base", model_max_length=128)
-        self.model = T5ForConditionalGeneration.from_pretrained("../models/parse-model").to('cuda')
-        self.custom_token_ids = self.tokenizer.encode('if(says([phrase_0]),say([phrase_1])) resolve() ask() say() label()', return_tensors='pt')
+        self.model = T5ForConditionalGeneration.from_pretrained(get_model_path("parse-model")).to('cuda')
+        self.custom_token_ids = self.tokenizer.encode('if( says([phrase_0]), say([phrase_1], ask([phrase_2]))) resolve() label()', return_tensors='pt')
+        print("Custom tokens:")
+        print(self.tokenizer.convert_ids_to_tokens(list(self.custom_token_ids[0])))
 
     def parse(self, sample: str):
         if not sample:
@@ -61,7 +64,10 @@ class TextParser:
             return unique[batch_id]
         output_ids = self.model.generate(model_inputs.to('cuda'), max_length=30, prefix_allowed_tokens_fn=allowed_tokens_fn, num_beams=1)
         parse = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        print(sentence_anon)
+        print("Parse:")
         print(parse)
+        print(self.tokenizer.convert_ids_to_tokens(output_ids[0]))
         for key, value in subs.items():
             parse = parse.replace(key, value)
         return parse
@@ -90,6 +96,9 @@ class TreeParser(TextParser):
 
     def append_tree(self, sample: str, tree: BehaviourTree = None, current_node: Behaviour = None):
         parse = self.parse(sample)
+        return self.build_behavior(parse, tree, current_node)
+
+    def build_behavior(self, parse: str, tree: BehaviourTree = None, current_node: Behaviour = None):
         fn, args = self._extract_fn(parse)
         if fn == 'resolve':
             b = CustomBehavior(name=args[0])
@@ -97,11 +106,11 @@ class TreeParser(TextParser):
                 current_node.add_child(b)
             return b
         elif fn == 'if':
-            precondition = self.append_tree(args[0])
-            action = self.append_tree(args[1])
+            precondition = self.build_behavior(args[0])
+            action = self.build_behavior(args[1])
             b = Conditional(precondition, action)
             if tree is not None and current_node is not None:
-                tree.add_child(b, current_node)
+                current_node.add_child(b)
             return b
         elif fn == 'ask':
             b = AskBehavior(text=args[0])
@@ -131,11 +140,7 @@ class TreeParser(TextParser):
                 raise ValueError("Label requires an existing tree")
             return b
 
-
-        
-            
-
 if __name__ == '__main__':
     parser = TreeParser()
-    parse = parser.parse("if they say sandwich then ask them what meat they would like")
+    parse = parser.parse("if they say yes then check them in")
     print(parser._extract_fn(parse))

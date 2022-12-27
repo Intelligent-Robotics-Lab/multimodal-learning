@@ -10,7 +10,7 @@ root:
   - name: 'action'
     parse: 'resolve($1)'
     sentences:
-      - '{request} {$1:action}'
+      - '{request} {$1:verb}'
   - name: 'ask'
     parse: 'ask($1)'
     sentences:
@@ -23,18 +23,22 @@ root:
       - '{request} ask {person-obj} to {$1:imp}'
       - '{request} instruct {person-obj} to {$1:imp}'
   - name: 'if'
-    parse: 'if($1,$2)'
+    parse: 'if( $1, $2)'
     sentences:
       - 'if {person-subj-s} {$1:says-s} then {$2:generic-say}'
       - 'if {person-subj-pl} {$1:says-pl} then {$2:generic-say}'
       - '{$2:generic-say} if {person-subj-s} {$1:says-s}'
       - '{$2:generic-say} if {person-subj-pl} {$1:says-pl}'
+      - 'if {person-subj-s} {$1:says-s} then {$2:action}'
+      - 'if {person-subj-pl} {$1:says-pl} then {$2:action}'
+      - '{$2:action} if {person-subj-s} {$1:says-s}'
+      - '{$2:action} if {person-subj-pl} {$1:says-pl}'
   - name: 'label'
     parse: 'label($1)'
     sentences:
-      - 'this is called {$1:action-ing}'
-      - "it's called {$1:action-ing}"
-      - '{$1:action-ing}'
+      - 'this is called {$1:gerund}'
+      - "it's called {$1:gerund}"
+      - '{$1:gerund}'
 components:
   - name: 'generic-say'
     parse: '$1'
@@ -45,9 +49,9 @@ components:
   - name: 'request'
     parse: ''
     sentences:
-      - 'next, you should'
-      - 'next, you'
-      - 'next,'
+      - 'next you should'
+      - 'next you'
+      - 'next'
       - 'you should'
       - 'you'
       - ''

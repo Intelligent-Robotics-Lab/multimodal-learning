@@ -2,7 +2,7 @@ from py_trees.trees import BehaviourTree
 from py_trees.composites import Sequence
 from py_trees.behaviour import Behaviour
 from py_trees.display import ascii_tree
-from multimodal.tasklearning.behaviours import Conditional, Approach, AskBehavior, SayBehavior, PersonSays, CustomBehavior, LearnableBehaviour
+from multimodal.tasklearning.behaviours import Conditional, LearnableSequence, Approach, NullBehaviour, PersonSays, CustomBehavior, LearnableBehaviour
 from multimodal.tasklearning.tree_parser import TreeParser
 from multimodal.nlp.sentence_classifier import SentenceType
 
@@ -38,6 +38,8 @@ class TaskLearner:
                 # Done learning, stop generating prompts
                 raise StopIteration()
             unlearned = self.find_unlearned_behaviour()
+            if isinstance(unlearned, LearnableSequence):
+                unlearned = unlearned.parent
             print(f"Unlearned: {unlearned.name}")
             if isinstance(unlearned, CustomBehavior):
                 if unlearned == self.root:
@@ -65,5 +67,29 @@ class TaskLearner:
                             if response == SentenceType.DONE:
                                 unlearned.learned = True
                                 yield Prompt(f"Okay, I've learned how to {unlearned.name}", False)
+            elif isinstance(unlearned, Conditional):
+                response = yield Prompt(f'Should I do anything else when {unlearned.if_statement.children[0].description}?', True)
+                if isinstance(response, str):
+                    self.parser.append_tree(response, self.tree, unlearned)
+                elif isinstance(response, SentenceType):
+                    if response == SentenceType.DONE:
+                        unlearned.if_statement.learned = True
+                        yield Prompt(f"Okay, I've learned what to do when {unlearned.if_statement.children[0].description}", False)
+                        text = unlearned.if_statement.children[0].text
+                        if text == "yes":
+                            response = yield Prompt(f'What should I do if the person says no?', True)
+                        elif text == "no":
+                            response = yield Prompt(f'What should I do if the person says yes?', True)
+                        else:
+                            unlearned.add_else(NullBehaviour())
+                            unlearned.learned = True
+                            continue
+                        action = self.parser.append_tree(response)
+                        unlearned.add_else(action)
+                        unlearned.learned = True
+
+            else:
+                raise Exception(f"Unknown behaviour type: {type(unlearned)}")
+                            
 
 

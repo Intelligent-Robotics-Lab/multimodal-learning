@@ -62,7 +62,7 @@ Generate a tree of of components, excluding phrases
 Lazy iterate through the tree, generating text where needed
 """
 
-dynamic_wildcards = set(['phrase', 'question', 'imp', 'action', 'action-ing', 'pronoun-subj-s', 'pronoun-subj-pl', 'pronoun-obj'])
+dynamic_wildcards = set(['phrase', 'question', 'imp', 'verb', 'gerund', 'pronoun-subj-s', 'pronoun-subj-pl', 'pronoun-obj'])
 
 class Wildcard:
     def __init__(self, tag: str):
@@ -111,9 +111,9 @@ class Phrase:
                     yield from (f'"{s}"' for s in self.vocab["questions"])
                 elif wildcard.name == 'phrase':
                     yield from (f'"{s}"' for s in self.vocab["statements"])
-                elif wildcard.name == 'action':
+                elif wildcard.name == 'verb':
                     yield from (f' {s}' for s in self.vocab["actions"])
-                elif wildcard.name == 'action-ing':
+                elif wildcard.name == 'gerund':
                     yield from (f' {s}' for s in self.vocab["gerunds"])
                 else:
                     yield from cycle([self])
@@ -263,10 +263,11 @@ if __name__ == '__main__':
         'gerunds': cycle(gerunds['test']['sentence']),
     }
 
-    train_ds = gen_phrases('grammar.yaml', 10000, train_vocab)
+    train_ds = gen_phrases(get_dataset_path('grammar.yaml'), 10000, train_vocab)
     for sample in list(train_ds)[:100]:
         print(sample["sentence"])
-    test_ds = gen_phrases('grammar.yaml', 1000, test_vocab)
+        print(sample["parse"])
+    test_ds = gen_phrases(get_dataset_path('grammar.yaml'), 1000, test_vocab)
 
     dataset = datasets.DatasetDict({'train': train_ds, 'test': test_ds})
     dataset.save_to_disk(get_dataset_path('dataset-split'))

@@ -27,6 +27,17 @@ class Approach(Describable, Behaviour):
         else:
             return Status.FAILURE
 
+class NullBehaviour(Behaviour):
+    def __init__(self, *args, **kwargs):
+        super().__init__(name='Do Nothing', *args, **kwargs)
+
+    def update(self):
+        return Status.SUCCESS
+
+class LearnableSequence(LearnableBehaviour, Sequence):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, memory=True, **kwargs)
+
 class CustomBehavior(LearnableBehaviour, Sequence):
     def __init__(self, name, **kwargs):
         super().__init__(name, description=f"I {name}", memory=True, **kwargs)
@@ -37,7 +48,7 @@ class CustomBehavior(LearnableBehaviour, Sequence):
 class Conditional(LearnableBehaviour, Selector):
     def __init__(self, state, action, **kwargs):
         super().__init__(name="Conditional", **kwargs)
-        self.if_statement = Sequence(name="If")
+        self.if_statement = LearnableSequence(name="If")
         self.if_statement.add_children([state, action])
         self.add_child(self.if_statement)
 
@@ -68,7 +79,7 @@ class SayBehavior(Describable, Behaviour):
 
 class PersonSays(Describable, Behaviour):
     def __init__(self, text, **kwargs):
-        super().__init__(name='Person Says', **kwargs)
+        super().__init__(name='Person Says', description=f"the person says {text}", **kwargs)
         if text == '':
             raise ValueError("Text cannot be empty")
         self.text = text

@@ -1,5 +1,5 @@
 import asyncio
-from furhat import Furhat
+from multimodal.furhat import Furhat
 from multimodal.tasklearning.tasklearner import TaskLearner, Prompt
 from multimodal.nlp.sentence_classifier import SentenceClassifier, SentenceType
 
@@ -38,8 +38,8 @@ Are you ready to begin?"""
         await self.introduce()
         gen = self.task_tree.generate_prompts()
         prompt = next(gen)
+        while True:
         if prompt.needs_response:
-            while True:
                 await self.say(prompt.text)
                 response = await self.listen()
                 sentence_type = self.sentence_classifier.classify_next(response)
@@ -52,6 +52,9 @@ Are you ready to begin?"""
                     print(f"Response: {response}")
                     print(f"Type: {sentence_type}")
                     prompt = gen.send(response)
+            else:
+                await self.say(prompt.text)
+                prompt = next(gen)
 
 class FurhatAgent(Furhat, DialogAgent):
     def __init__(self, host='localhost', port=80):
