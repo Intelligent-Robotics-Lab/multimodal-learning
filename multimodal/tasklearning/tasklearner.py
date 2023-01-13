@@ -55,7 +55,6 @@ class TaskLearner:
                             self.parser.append_tree(response.text, self.tree, unlearned)
                         elif response.sentence_type == SentenceType.DONE:
                             self.root.learned = True
-                            yield Prompt("Okay, I've learned everything I need to know", False)
                             raise StopIteration()
                         elif response.sentence_type == SentenceType.MISRECOGNIZED:
                             self.root.remove_child(self.root.children[-1])

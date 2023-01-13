@@ -43,24 +43,27 @@ Are you ready to begin?"""
         await self.introduce()
         gen = self.task_tree.generate_prompts()
         prompt = next(gen)
-        while True:
-            if prompt.needs_response:
-                await self.say(prompt.text)
-                user_text = await self.listen()
-                sentence_type = self.sentence_classifier.classify_next(user_text)
-                response = Response(user_text, sentence_type)
-                while sentence_type in [SentenceType.UNCERTAIN, SentenceType.UNKNOWN]:
-                    if sentence_type == SentenceType.UNKNOWN:
-                        await self.say("I'm sorry, I didn't understand that. Please try again.")
-                    else:
-                        await self.say("If you aren't sure, that's ok. Continue when you're ready")
+        try:
+            while True:
+                if prompt.needs_response:
+                    await self.say(prompt.text)
                     user_text = await self.listen()
                     sentence_type = self.sentence_classifier.classify_next(user_text)
                     response = Response(user_text, sentence_type)
-                prompt = gen.send(response)
-            else:
-                await self.say(prompt.text)
-                prompt = next(gen)
+                    while sentence_type in [SentenceType.UNCERTAIN, SentenceType.UNKNOWN]:
+                        if sentence_type == SentenceType.UNKNOWN:
+                            await self.say("I'm sorry, I didn't understand that. Please try again.")
+                        else:
+                            await self.say("If you aren't sure, that's ok. Continue when you're ready")
+                        user_text = await self.listen()
+                        sentence_type = self.sentence_classifier.classify_next(user_text)
+                        response = Response(user_text, sentence_type)
+                    prompt = gen.send(response)
+                else:
+                    await self.say(prompt.text)
+                    prompt = next(gen)
+        except StopIteration:
+            await self.say("Okay, I think I've learned everything I need to know. Thank you for your help!")
 
 class FurhatAgent(Furhat, DialogAgent):
     def __init__(self, host='localhost', port=80):
@@ -75,7 +78,7 @@ class VirtualAgent(DialogAgent):
         return input("Human says: ")
 
 async def main():
-    LIVE = False
+    LIVE = True
     if LIVE:
         agent = FurhatAgent('141.210.193.186')
         async with agent.connect():
