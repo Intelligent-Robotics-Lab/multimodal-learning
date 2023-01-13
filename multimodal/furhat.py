@@ -14,6 +14,11 @@ class SpeechType(Enum):
     FAILED = 5
     ABORTED = 6
 
+class SpeakerRole(Enum):
+    TEACHER = 0
+    EMPLOYEE = 1
+    CUSTOMER = 2
+
 class UserSpeech():
     def __init__(self, event: Dict):
         self.text = event.get("text")
@@ -23,17 +28,10 @@ class UserSpeech():
         self.time = event.get("time")
         self.userId = event.get("userId")
         self.audioLength = event.get("audiolength")
+        self.role = None
 
     def __str__(self):
         return str(self.__dict__)
-
-# class RobotSpeech():
-#     def __init__(self, text: str, asynchronous: bool = False, ifSilent: bool = False, abort: bool = False, interruptable: bool = False):
-#         self.text = text
-#         self.asynchronous = asynchronous
-#         self.ifSilent = ifSilent
-#         self.abort = abort
-#         self.interruptable = interruptable
 
 class Furhat():
     def __init__(self, host, port=80):
@@ -41,6 +39,7 @@ class Furhat():
         self.port = port
         self.websocket = None
         self.subscriptions: Dict[str, List[asyncio.Queue]] = {}
+        self.user_locations = {}
 
     @asynccontextmanager
     async def connect(self):
@@ -78,7 +77,7 @@ class Furhat():
         finally:
             self.subscriptions[name].remove(queue)
 
-    async def speech(self) -> AsyncIterator[Dict]:
+    async def speech(self) -> AsyncIterator[UserSpeech]:
         gen = self.subscribe("furhatos.event.senses.SenseSpeech")
         try:
             async for event in gen:
@@ -88,13 +87,28 @@ class Furhat():
         finally:
             gen.asend("stop")
 
-    async def dyadicSpeech(self) -> AsyncIterator[Dict]:
+    async def dyadicSpeech(self) -> AsyncIterator[UserSpeech]:
+        async def recv_users():
+            gen = self.subscribe("furhatos.event.senses.SenseUsers")
+            try:
+                async for event in gen:
+                    for id_, user in event.get("users").items():
+                        self.user_locations[id_] = user["head"]["location"]
+            finally:
+                gen.asend("stop")
+        task = asyncio.create_task(recv_users())
         gen = self.subscribe("furhatos.event.senses.SenseSpeech")
         try:
             prev = None
             num_words_prev = 0
             async for event in gen:
                 s = UserSpeech(event)
+                location = self.user_locations.get(s.userId)
+                if location is not None:
+                    if location["x"] < 0:
+                        s.role = SpeakerRole.CUSTOMER
+                    else:
+                        s.role = SpeakerRole.EMPLOYEE
                 s.text = ' '.join(s.text.split(' ')[num_words_prev:])
                 if s.type == SpeechType.FINAL:
                     yield s
@@ -106,6 +120,7 @@ class Furhat():
                     prev = s
         finally:
             gen.asend("stop")
+            task.cancel()
 
     async def say(self, text: str, asynchronous: bool = False, ifSilent: bool = False, abort: bool = False, interruptable: bool = False):
         subscription = self.subscribe("furhatos.event.monitors.MonitorSpeechEnd")

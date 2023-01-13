@@ -7,7 +7,6 @@ from lemminflect import getInflection
 class Describable:
     def __init__(self, *args, description : str = None, **kwargs):
         super().__init__(*args, **kwargs)
-        print("Description: ", description)
         self.description = description
 
 class LearnableBehaviour(Describable):

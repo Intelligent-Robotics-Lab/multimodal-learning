@@ -1,7 +1,8 @@
 import asyncio
 from multimodal.furhat import Furhat
-from multimodal.tasklearning.tasklearner import TaskLearner, Prompt
+from multimodal.tasklearning.tasklearner import TaskLearner, Prompt, Response
 from multimodal.nlp.sentence_classifier import SentenceClassifier, SentenceType
+from multimodal.utils import get_logger
 
 class DialogAgent:
     def __init__(self):
@@ -20,7 +21,11 @@ class DialogAgent:
             speech = await self.listen()
             # print(speech)
             if speech != '':
-                affirmative = self.sentence_classifier.classify_ready(speech) == SentenceType.YES
+                ready = self.sentence_classifier.classify_ready(speech)
+                if ready == SentenceType.UNKNOWN:
+                    await self.say("I'm sorry, I didn't understand that. Please say yes or no.")
+                    continue
+                affirmative = ready == SentenceType.YES
                 if not affirmative:
                     await self.say(prompt)
 
@@ -39,19 +44,20 @@ Are you ready to begin?"""
         gen = self.task_tree.generate_prompts()
         prompt = next(gen)
         while True:
-        if prompt.needs_response:
+            if prompt.needs_response:
                 await self.say(prompt.text)
-                response = await self.listen()
-                sentence_type = self.sentence_classifier.classify_next(response)
-                while sentence_type == SentenceType.UNCERTAIN:
-                    response = await self.listen()
-                    sentence_type = self.sentence_classifier.classify_next(response)
-                if sentence_type == SentenceType.DONE:
-                    prompt = gen.send(sentence_type)
-                else:
-                    print(f"Response: {response}")
-                    print(f"Type: {sentence_type}")
-                    prompt = gen.send(response)
+                user_text = await self.listen()
+                sentence_type = self.sentence_classifier.classify_next(user_text)
+                response = Response(user_text, sentence_type)
+                while sentence_type in [SentenceType.UNCERTAIN, SentenceType.UNKNOWN]:
+                    if sentence_type == SentenceType.UNKNOWN:
+                        await self.say("I'm sorry, I didn't understand that. Please try again.")
+                    else:
+                        await self.say("If you aren't sure, that's ok. Continue when you're ready")
+                    user_text = await self.listen()
+                    sentence_type = self.sentence_classifier.classify_next(user_text)
+                    response = Response(user_text, sentence_type)
+                prompt = gen.send(response)
             else:
                 await self.say(prompt.text)
                 prompt = next(gen)
@@ -69,7 +75,7 @@ class VirtualAgent(DialogAgent):
         return input("Human says: ")
 
 async def main():
-    LIVE = True
+    LIVE = False
     if LIVE:
         agent = FurhatAgent('141.210.193.186')
         async with agent.connect():

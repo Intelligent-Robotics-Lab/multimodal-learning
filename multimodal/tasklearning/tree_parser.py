@@ -4,7 +4,11 @@ from transformers import AutoTokenizer, AutoModelForTokenClassification, T5ForCo
 from transformers.pipelines.token_classification import TokenClassificationPipeline
 from multimodal.tasklearning.behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
 from multimodal.utils import get_model_path
+from copy import deepcopy
 import torch
+
+class ParseError(Exception):
+    pass
 
 class AnonymizationPipeline(TokenClassificationPipeline):
     def __init__(self, **kwargs):
@@ -45,8 +49,6 @@ class TextParser:
         self.tokenizer: T5Tokenizer = T5Tokenizer.from_pretrained("t5-base", model_max_length=128)
         self.model = T5ForConditionalGeneration.from_pretrained(get_model_path("parse-model")).to('cuda')
         self.custom_token_ids = self.tokenizer.encode('if( says([phrase_0]), say([phrase_1], ask([phrase_2]))) resolve() label()', return_tensors='pt')
-        print("Custom tokens:")
-        print(self.tokenizer.convert_ids_to_tokens(list(self.custom_token_ids[0])))
 
     def parse(self, sample: str):
         if not sample:
@@ -62,7 +64,14 @@ class TextParser:
         unique = torch.unique(output_space, dim=1, sorted=False)
         def allowed_tokens_fn(batch_id, input_ids):
             return unique[batch_id]
-        output_ids = self.model.generate(model_inputs.to('cuda'), max_length=30, prefix_allowed_tokens_fn=allowed_tokens_fn, num_beams=1)
+        output = self.model.generate(model_inputs.to('cuda'), max_length=30, prefix_allowed_tokens_fn=allowed_tokens_fn, num_beams=1, output_scores=True, return_dict_in_generate=True)
+        output_ids = output.sequences
+        logits = torch.cat(output.scores, dim=0)
+        scores, _ = torch.max(torch.nn.functional.softmax(logits, dim=1), dim=1)
+        score = torch.prod(scores)
+        print(score)
+        if score < 0.7:
+            raise ParseError("Low confidence in parse")
         parse = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
         print(sentence_anon)
         print("Parse:")
@@ -72,7 +81,11 @@ class TextParser:
             parse = parse.replace(key, value)
         return parse
     
-class TreeParser(TextParser):    
+class TreeParser(TextParser):
+    def __init__(self):
+        super().__init__()
+        self.learned = {}
+
     def _extract_fn(self, parse: str):
         function, body = parse.split('(', 1)
         assert body[-1] == ')'
@@ -131,7 +144,11 @@ class TreeParser(TextParser):
                     raise ValueError("Says must be a child of a conditional")
             return b
         elif fn == 'label':
-            b = CustomBehavior(name=args[0])
+            if args[0] in self.learned:
+                b = deepcopy(self.learned[args[0]])
+            else:
+                b = CustomBehavior(name=args[0])
+                
             if tree is not None and current_node is not None:
                 b.add_child(current_node)
                 if not tree.replace_subtree(current_node.id, b):
