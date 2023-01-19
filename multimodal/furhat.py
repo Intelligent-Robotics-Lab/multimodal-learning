@@ -4,6 +4,7 @@ import json
 from enum import Enum
 from contextlib import asynccontextmanager
 from typing import Dict, List, AsyncIterator
+from .utils import get_logger
 
 class SpeechType(Enum):
     FINAL = 0
@@ -40,13 +41,20 @@ class Furhat():
         self.websocket = None
         self.subscriptions: Dict[str, List[asyncio.Queue]] = {}
         self.user_locations = {}
+        self.logger = get_logger("Furhat", True)
 
     @asynccontextmanager
     async def connect(self):
         self.websocket = await client.connect("ws://{}:{}/api".format(self.host, self.port))
-        task = asyncio.create_task(self.recv())
+        recv_task = asyncio.create_task(self.recv())
+        async def heartbeat():
+            while True:
+                await asyncio.sleep(1)
+                await self.send({ "event_name": "ServerEvent", "type": "Heartbeat" })
+        heartbeat_task = asyncio.create_task(heartbeat())
         yield self
-        task.cancel()
+        recv_task.cancel()
+        heartbeat_task.cancel()
         await self.websocket.close()
 
     async def send(self, event):
@@ -83,7 +91,7 @@ class Furhat():
             async for event in gen:
                 s = UserSpeech(event)
                 if s.type == SpeechType.FINAL or s.type == SpeechType.MAXSPEECH:
-                    yield
+                    yield s
         finally:
             gen.asend("stop")
 
@@ -124,7 +132,7 @@ class Furhat():
 
     async def say(self, text: str, asynchronous: bool = False, ifSilent: bool = False, abort: bool = False, interruptable: bool = False):
         subscription = self.subscribe("furhatos.event.monitors.MonitorSpeechEnd")
-        event = { "event_name": 'furhatos.event.actions.ActionSpeech', "text": text, "asynchronous": asynchronous, "ifSilent": ifSilent, "abort": abort, "interruptable": interruptable }
+        event = { "event_name": 'furhatos.event.actions.ActionSpeech', "text": text, "asynchronous": asynchronous, "ifSilent": ifSilent, "abort": abort, "yielding": interruptable }
         await self.send(event)
         async for event in subscription:
             print("Received")
@@ -135,6 +143,7 @@ class Furhat():
         event = { "event_name": 'furhatos.event.actions.ActionListen', "endSilTimeout": endSilTimeout }
         await self.send(event)
         async for event in self.speech():
+            self.logger.info(str(event))
             return event.text
 
     async def unsubscribe(self, name):
@@ -144,11 +153,12 @@ class Furhat():
 if __name__ == "__main__":
     async def main():
         async with Furhat("141.210.193.186", 80).connect() as furhat:
-            async def print_direction():
-                async for event in furhat.subscribe("furhatos.event.senses.SenseSpeechDirection"):
-                    print(event)
-            task = asyncio.create_task(print_direction())
-            async for event in furhat.dyadicSpeech():
-                print(event)
+            # async def print_direction():
+            #     async for event in furhat.subscribe("furhatos.event.senses.SenseSpeechDirection"):
+            #         print(event)
+            # task = asyncio.create_task(print_direction())
+            # async for event in furhat.speech():
+            #     print(event)
+            print(await furhat.listen())
 
     asyncio.run(main())

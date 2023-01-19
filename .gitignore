@@ -1,3 +1,4 @@
 venv/
 multimodal/data/*/
 *.pyc
+multimodal/logs/*

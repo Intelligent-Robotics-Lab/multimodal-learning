@@ -40,30 +40,33 @@ Are you ready to begin?"""
         await self.say("Okay, let's begin!")
 
     async def run(self):
-        await self.introduce()
-        gen = self.task_tree.generate_prompts()
-        prompt = next(gen)
         try:
-            while True:
-                if prompt.needs_response:
-                    await self.say(prompt.text)
-                    user_text = await self.listen()
-                    sentence_type = self.sentence_classifier.classify_next(user_text)
-                    response = Response(user_text, sentence_type)
-                    while sentence_type in [SentenceType.UNCERTAIN, SentenceType.UNKNOWN]:
-                        if sentence_type == SentenceType.UNKNOWN:
-                            await self.say("I'm sorry, I didn't understand that. Please try again.")
-                        else:
-                            await self.say("If you aren't sure, that's ok. Continue when you're ready")
+            await self.introduce()
+            gen = self.task_tree.generate_prompts()
+            prompt = next(gen)
+            try:
+                while True:
+                    if prompt.needs_response:
+                        await self.say(prompt.text)
                         user_text = await self.listen()
                         sentence_type = self.sentence_classifier.classify_next(user_text)
                         response = Response(user_text, sentence_type)
-                    prompt = gen.send(response)
-                else:
-                    await self.say(prompt.text)
-                    prompt = next(gen)
-        except StopIteration:
-            await self.say("Okay, I think I've learned everything I need to know. Thank you for your help!")
+                        while sentence_type in [SentenceType.UNCERTAIN, SentenceType.UNKNOWN]:
+                            if sentence_type == SentenceType.UNKNOWN:
+                                await self.say("I'm sorry, I didn't understand that. Please try again.")
+                            else:
+                                await self.say("If you aren't sure, that's ok. Continue when you're ready")
+                            user_text = await self.listen()
+                            sentence_type = self.sentence_classifier.classify_next(user_text)
+                            response = Response(user_text, sentence_type)
+                        prompt = gen.send(response)
+                    else:
+                        await self.say(prompt.text)
+                        prompt = next(gen)
+            except StopIteration:
+                await self.say("Okay, I think I've learned everything I need to know. Thank you for your help!")
+        except asyncio.exceptions.CancelledError as e:
+            print("Dialog cancelled")
 
 class FurhatAgent(Furhat, DialogAgent):
     def __init__(self, host='localhost', port=80):
