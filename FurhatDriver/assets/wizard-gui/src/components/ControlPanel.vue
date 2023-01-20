@@ -9,20 +9,18 @@
       </div>
       <h4 class="text-lg col-span-4">Mode:</h4>
       <div v-for="mode in modes" :key="mode" class="w-full">
-        <button class="rounded border border-teal-400 bg-teal-50 p-2 text-teal-800 w-full"
-          :class="{'bg-teal-200': currentMode == mode}"
-          @click="setMode(mode)">
+        <CustomButton color="teal" :enabled="currentITLMode == 'Idle'" :highlighted="currentMode == mode" @buttonClick="setMode(mode)">
           {{ mode }}
-        </button>
+        </CustomButton>
       </div>
       <h4 v-if="currentMode == 'ITL'" class="text-lg col-span-4">ITL Mode:</h4>
       <div v-if="currentMode == 'ITL'" v-for="mode in ITLModes" :key="mode" class="w-full">
-        <button class="rounded border border-purple-400 bg-purple-50 p-2 text-purple-800 w-full"
-          :class="{'bg-gray-50': currentITLMode != 'Idle', 'bg-purple-200': currentITLMode == mode}"
-          :enabled="currentITLMode == 'Idle'"
-          @click="setITLMode(mode)">
+        <CustomButton color="purple" 
+                      :enabled="currentITLMode == 'Idle' || currentITLMode == mode" 
+                      :highlighted="currentITLMode == mode" 
+                      @buttonClick="setITLMode(mode)">
           {{ mode }}
-        </button>
+        </CustomButton>
       </div>
       <button v-if="currentITLMode != 'Idle'" class="rounded border border-red-800 bg-red-500 p-2 text-white w-full"
         @click="stop()">
@@ -34,6 +32,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch, computed, onMounted } from "vue";
 import { Furhat } from "furhat-gui";
+import CustomButton from "./CustomButton.vue";
 
 const modes: string[] = reactive(["LfD", "ITL"]);
 const ITLModes = reactive(["Idle", "Learning", "Testing", "Evaluating"])
@@ -54,6 +53,7 @@ const props = defineProps({
 })
 
 const setMode = (mode: string) => {
+  console.log("Setting mode to " + mode);
   props.furhat.send({"event_name": "GUIEvent", "type": "SetMode", "mode": mode, "participantId": participantId.value});
 }
 
