@@ -1,9 +1,10 @@
 import asyncio
 import websockets.client as client
+import websockets
 import json
 from enum import Enum
 from contextlib import asynccontextmanager
-from typing import Dict, List, AsyncIterator
+from typing import Dict, List, AsyncIterator, AsyncGenerator
 from .utils import get_logger
 
 class SpeechType(Enum):
@@ -34,17 +35,22 @@ class UserSpeech():
     def __str__(self):
         return str(self.__dict__)
 
+class DisconnectError(Exception):
+    pass
+
 class Furhat():
     def __init__(self, host, port=80):
         self.host = host
         self.port = port
         self.websocket = None
+        self.disconnect_event = asyncio.Event()
         self.subscriptions: Dict[str, List[asyncio.Queue]] = {}
         self.user_locations = {}
         self.logger = get_logger("Furhat", True)
 
     @asynccontextmanager
     async def connect(self):
+        self.disconnect_event.clear()
         self.websocket = await client.connect("ws://{}:{}/api".format(self.host, self.port))
         recv_task = asyncio.create_task(self.recv())
         async def heartbeat():
@@ -52,22 +58,29 @@ class Furhat():
                 await asyncio.sleep(1)
                 await self.send({ "event_name": "ServerEvent", "type": "Heartbeat" })
         heartbeat_task = asyncio.create_task(heartbeat())
-        yield self
-        recv_task.cancel()
-        heartbeat_task.cancel()
-        await self.websocket.close()
+        try:
+            yield self
+        finally:
+            recv_task.cancel()
+            heartbeat_task.cancel()
+            await self.websocket.close()
+            self.subscriptions = {}
 
     async def send(self, event):
         result = await self.websocket.send(json.dumps(event))
 
     async def recv(self):
-        while True:
-            response = await self.websocket.recv()
-            event = json.loads(response)
-            name = event.get("event_name")
-            if name in self.subscriptions:
-                for queue in self.subscriptions[name]:
-                    await queue.put(event)
+        try:
+            while True:
+                response = await self.websocket.recv()
+                event = json.loads(response)
+                name = event.get("event_name")
+                if name in self.subscriptions:
+                    for queue in self.subscriptions[name]:
+                        await queue.put(event)
+        except websockets.ConnectionClosed:
+            print("Connection closed")
+            self.disconnect_event.set()
 
     async def subscribe(self, name) -> AsyncIterator[Dict]:
         if name not in self.subscriptions:
@@ -78,10 +91,14 @@ class Furhat():
         self.subscriptions[name].append(queue)
         try:
             while True:
-                response = yield await queue.get()
-                if response is not None:
-                    self.subscriptions[name].remove(queue)
-                    break
+                done, pending = await asyncio.wait([queue.get(), self.disconnect_event.wait()], return_when=asyncio.FIRST_COMPLETED)
+                for task in pending:
+                    task.cancel()
+                if self.disconnect_event.is_set():
+                    raise DisconnectError
+                yield done.pop().result()
+        except GeneratorExit:
+            pass
         finally:
             self.subscriptions[name].remove(queue)
 
@@ -93,7 +110,7 @@ class Furhat():
                 if s.type == SpeechType.FINAL or s.type == SpeechType.MAXSPEECH:
                     yield s
         finally:
-            gen.asend("stop")
+            gen.aclose()
 
     async def dyadicSpeech(self) -> AsyncIterator[UserSpeech]:
         async def recv_users():
@@ -103,7 +120,7 @@ class Furhat():
                     for id_, user in event.get("users").items():
                         self.user_locations[id_] = user["head"]["location"]
             finally:
-                gen.asend("stop")
+                gen.aclose()
         task = asyncio.create_task(recv_users())
         gen = self.subscribe("furhatos.event.senses.SenseSpeech")
         try:
@@ -127,7 +144,7 @@ class Furhat():
                     num_words_prev = len(prev.text.split(' '))
                     prev = s
         finally:
-            gen.asend("stop")
+            gen.aclose()
             task.cancel()
 
     async def say(self, text: str, asynchronous: bool = False, ifSilent: bool = False, abort: bool = False, interruptable: bool = False):
@@ -137,7 +154,7 @@ class Furhat():
         async for event in subscription:
             print("Received")
             break
-        subscription.asend("stop")
+        subscription.aclose()
 
     async def listen(self, endSilTimeout: int = 1000):
         event = { "event_name": 'furhatos.event.actions.ActionListen', "endSilTimeout": endSilTimeout }
