@@ -50,19 +50,19 @@ if (props.furhat) {
   })
   props.furhat.subscribe('furhatos.event.senses.SenseSpeech', (event) => {
     console.log(event);
-    if (event.text == '') {
+    if (event.displayText == '') {
       addUtterance(new Utterance(Speaker.Human, '(No Response)', false));
       return;
     }
-    addUtterance(new Utterance(Speaker.Human, event.text, !!event.type));
+    addUtterance(new Utterance(Speaker.Human, event.displayText, !!event.type));
   })
   props.furhat.subscribe('furhatos.event.monitors.MonitorSpeechStart', (event) => {
     console.log(event);
-    if (event.text == '') {
+    if (event.displayText == '') {
       addUtterance(new Utterance(Speaker.Robot, '(No Response)', false));
       return;
     }
-    addUtterance(new Utterance(Speaker.Robot, event.text, false));
+    addUtterance(new Utterance(Speaker.Robot, event.diplayText, false));
   })
   // props.furhat.subscribe('InterimSpeech', (event) => {
   //   addUtterance(new Utterance(Speaker.Human, event.text, true));
