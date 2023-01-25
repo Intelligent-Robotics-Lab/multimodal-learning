@@ -16,7 +16,7 @@ class LearnableBehaviour(Describable):
 
 class Approach(Describable, Behaviour):
     def __init__(self, *args, **kwargs):
-        super().__init__(description='a person approaches me', *args, **kwargs)
+        super().__init__(name="Approach", description='a person approaches me', *args, **kwargs)
         self.client = Client(name=self.name)
         self.client.register_key(key="approached", access=Access.READ)
     
@@ -49,10 +49,9 @@ class Conditional(LearnableBehaviour, Selector):
         super().__init__(name="Conditional", **kwargs)
         self.if_statement = LearnableSequence(name="If")
         self.if_statement.add_children([state, action])
+        self.else_statement = LearnableSequence(name="Else")
         self.add_child(self.if_statement)
-
-    def add_else(self, action):
-        self.add_child(action)
+        self.add_child(self.else_statement)
 
 class AskBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):

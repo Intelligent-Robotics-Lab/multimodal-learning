@@ -11,10 +11,22 @@ class Prompt:
         self.text = text
         self.needs_response = needs_response
 
+    def __str__(self) -> str:
+        return f"Prompt: {self.text} ({self.needs_response})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 class Response:
     def __init__(self, text: str, sentence_type: SentenceType) -> None:
         self.text = text
         self.sentence_type = sentence_type
+
+    def __str__(self) -> str:
+        return f"Response: {self.text} ({self.sentence_type})"
+    
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class TaskLearner:
     def __init__(self, root : Behaviour = None):
@@ -41,21 +53,30 @@ class TaskLearner:
             print(ascii_tree(self.tree.root))
             if self.root.learned:
                 # Done learning, stop generating prompts
-                raise StopIteration()
+                return
             unlearned = self.find_unlearned_behaviour()
+            print(f"Unlearned: {unlearned.name}")
             if isinstance(unlearned, LearnableSequence):
                 unlearned = unlearned.parent
             print(f"Unlearned: {unlearned.name}")
             try:
                 if isinstance(unlearned, CustomBehavior):
                     if unlearned == self.root:
-                        response: Response = yield Prompt(f'What should I do after {self.root.children[-1].description}?', True)
+                        prev = self.root.children[-1]
+                        if isinstance(prev, Conditional):
+                            if len(prev.else_statement.children) >= 1:
+                                yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description} or {prev.else_statement.children[0].description}', False)
+                                response = yield Prompt("What should I do next?", True)
+                            else:
+                                yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description}', False)
+                                response = yield Prompt("What should I do next?", True)
+                        else:
+                            response: Response = yield Prompt(f'What should I do after {prev.description}?', True)
                         
                         if response.sentence_type == SentenceType.INSTRUCTION:
                             self.parser.append_tree(response.text, self.tree, unlearned)
                         elif response.sentence_type == SentenceType.DONE:
                             self.root.learned = True
-                            raise StopIteration()
                         elif response.sentence_type == SentenceType.MISRECOGNIZED:
                             self.root.remove_child(self.root.children[-1])
                             yield Prompt("I'm sorry I misheard you, let's try again", False)
@@ -73,7 +94,6 @@ class TaskLearner:
                         else:
                             # Existing behavior
                             response = yield Prompt(f'What is the next step of {unlearned.gerund}?', True)
-                            # print(f"Response: {response}")
                             if response.sentence_type == SentenceType.INSTRUCTION:
                                 self.parser.append_tree(response.text, self.tree, unlearned)
                             elif response.sentence_type == SentenceType.DONE:
@@ -81,24 +101,44 @@ class TaskLearner:
                                 yield Prompt(f"Okay, I've learned how to {unlearned.name}", False)
 
                 elif isinstance(unlearned, Conditional):
-                    response = yield Prompt(f'Should I do anything else when {unlearned.if_statement.children[0].description}?', True)
-                    if response.sentence_type == SentenceType.INSTRUCTION:
-                        self.parser.append_tree(response.text, self.tree, unlearned)
-                    elif response == SentenceType.DONE:
-                        unlearned.if_statement.learned = True
-                        yield Prompt(f"Okay, I've learned what to do when {unlearned.if_statement.children[0].description}", False)
-                        text = unlearned.if_statement.children[0].text
-                        if text == "yes":
-                            response = yield Prompt(f'What should I do if the person says no?', True)
-                        elif text == "no":
-                            response = yield Prompt(f'What should I do if the person says yes?', True)
+                    if not unlearned.if_statement.learned:
+                        response = yield Prompt(f'Ok, should I do anything else when {unlearned.if_statement.children[0].description}?', True)
+                        if response.sentence_type == SentenceType.INSTRUCTION:
+                            self.parser.append_tree(response.text, self.tree, unlearned.if_statement)
+                        elif response.sentence_type == SentenceType.DONE:
+                            unlearned.if_statement.learned = True
+                            yield Prompt(f"Okay, I've learned what to do when {unlearned.if_statement.children[0].description}", False)
+                            text = unlearned.if_statement.children[0].text
+                            if text == "yes":
+                                unlearned.else_statement.description = "no"
+                                unlearned.else_statement.add_child(PersonSays("no"))
+                                response = yield Prompt(f'What should I do if the person says no?', True)
+                            elif text == "no":
+                                unlearned.else_statement.description = "yes"
+                                unlearned.else_statement.add_child(PersonSays("yes"))
+                                response = yield Prompt(f'What should I do if the person says yes?', True)
+                            else:
+                                unlearned.else_statement.learned = True
+                                continue
+                            if response.sentence_type == SentenceType.INSTRUCTION:
+                                action = self.parser.append_tree(response.text)
+                                unlearned.else_statement.add_child(action)
+                            elif response.sentence_type == SentenceType.DONE:
+                                unlearned.learned = True
                         else:
-                            unlearned.add_else(NullBehaviour())
+                            print(f"Unhandled response: {response}")
+                            yield Prompt("Oh, I appear to be confused, let me think a minute", False)
+                    else:
+                        response = yield Prompt(f'Ok, should I do anything else when the person says {unlearned.else_statement.description}?', True)
+                        if response.sentence_type == SentenceType.INSTRUCTION:
+                            self.parser.append_tree(response.text, self.tree, unlearned.else_statement)
+                        elif response.sentence_type == SentenceType.DONE:
                             unlearned.learned = True
-                            continue
-                        action = self.parser.append_tree(response.text)
-                        unlearned.add_else(action)
-                        unlearned.learned = True
+                            yield Prompt(f"Okay, I've learned what to do when the person says {unlearned.else_statement.description}", False)
+                        else:
+                            print(f"Unhandled response 2: {response}")
+                            yield Prompt("Oh, I appear to be confused, let me think a minute", False)
+                        
                 else:
                     raise Exception(f"Unknown behaviour type: {type(unlearned)}")
             except ParseError as e:

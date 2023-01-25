@@ -69,7 +69,7 @@ training_args = Seq2SeqTrainingArguments(
     learning_rate=3e-4,
     per_device_train_batch_size=64,
     per_device_eval_batch_size=64,
-    num_train_epochs=5,
+    num_train_epochs=1,
     predict_with_generate=True,
     generation_max_length=30,
 )

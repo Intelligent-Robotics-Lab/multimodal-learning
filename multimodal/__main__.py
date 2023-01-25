@@ -39,7 +39,7 @@ async def run_experiment(furhat, gui_state):
                 if cmd['mode'] == 'Learning':
                     print('Learning')
                     gui_state['ITLMode'] = 'Learning'
-                    itl_task = asyncio.create_task(furhat.run())
+                    itl_task = asyncio.create_task(furhat.learn())
                     async def cancel_itl():
                         cmd = await cmds.__anext__()
                         if cmd['type'] != 'StopLearning':

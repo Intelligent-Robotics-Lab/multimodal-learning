@@ -45,7 +45,7 @@ def load_imperatives():
     dataset = dataset.rename_column('text', 'sentence')
     dataset = dataset.map(preprocess)
     def filter_imperatives(x):
-        return not (x['sentence'].startswith(('dont', 'don\'t', 'do ', 'let\'s', 'let us', 'if ', 'this ')) or ';' in x['sentence'] or '"' in x['sentence'])
+        return not (x['sentence'].startswith(('dont', 'don\'t', 'do ', 'let\'s', 'let us', 'if ', 'this ')) or ';' in x['sentence'] or '"' in x['sentence'] or '(' in x['sentence'])
     dataset = dataset.filter(filter_imperatives)
     return dataset
 
