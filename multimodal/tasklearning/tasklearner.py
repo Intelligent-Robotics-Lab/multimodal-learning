@@ -65,7 +65,7 @@ class TaskLearner:
                         prev = self.root.children[-1]
                         if isinstance(prev, Conditional):
                             if len(prev.else_statement.children) >= 1:
-                                yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description} or {prev.else_statement.children[0].description}', False)
+                                yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description} or {prev.else_statement.description}', False)
                                 response = yield Prompt("What should I do next?", True)
                             else:
                                 yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description}', False)
@@ -111,11 +111,11 @@ class TaskLearner:
                             text = unlearned.if_statement.children[0].text
                             if text == "yes":
                                 unlearned.else_statement.description = "no"
-                                unlearned.else_statement.add_child(PersonSays("no"))
+                                # unlearned.else_statement.add_child(PersonSays("no"))
                                 response = yield Prompt(f'What should I do if the person says no?', True)
                             elif text == "no":
                                 unlearned.else_statement.description = "yes"
-                                unlearned.else_statement.add_child(PersonSays("yes"))
+                                # unlearned.else_statement.add_child(PersonSays("yes"))
                                 response = yield Prompt(f'What should I do if the person says yes?', True)
                             else:
                                 unlearned.else_statement.learned = True

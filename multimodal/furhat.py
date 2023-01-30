@@ -96,9 +96,10 @@ class Furhat():
                     task.cancel()
                 if self.disconnect_event.is_set():
                     raise DisconnectError
-                yield done.pop().result()
-        except GeneratorExit:
-            pass
+                try:
+                    yield done.pop().result()
+                except asyncio.CancelledError:
+                    print("Subscribing to cancelled queue")
         finally:
             self.subscriptions[name].remove(queue)
 
@@ -155,7 +156,6 @@ class Furhat():
         event = { "event_name": 'furhatos.event.actions.ActionSpeech', "text": text, "asynchronous": asynchronous, "ifSilent": ifSilent, "abort": abort, "yielding": interruptable }
         await self.send(event)
         async for event in subscription:
-            print("Received")
             break
         subscription.aclose()
 
@@ -168,10 +168,9 @@ class Furhat():
 
 if __name__ == "__main__":
     async def main():
-        async with Furhat("localhost", 8080).connect() as furhat:
+        async with Furhat("141.210.193.186", 80).connect() as furhat:
             event = { "event_name": 'furhatos.app.furhatdriver.CustomListen', "endSilTimeout": 1000, "infinite": True }
             await furhat.send(event)
-            # await asyncio.sleep(10000)
             async for event in furhat.subscribe("furhatos.event.senses.SenseSpeech"):
                 print(event)
 

@@ -12,17 +12,23 @@ async def run_experiment(furhat, gui_state):
             await furhat.send(event)
             await asyncio.sleep(1)
     gui_state_task = asyncio.create_task(update_gui_state(gui_state))
+    event_queue = asyncio.Queue()
+    async def event_handler():
+        async for event in furhat.subscribe('furhatos.app.furhatdriver.GUIEvent'):
+            await event_queue.put(event)
+        print("Event handler done")
+    event_handler_task = asyncio.create_task(event_handler())
     try:
-        cmds = furhat.subscribe('furhatos.app.furhatdriver.GUIEvent')
-        cmd = await cmds.__anext__()
+        cmd = await event_queue.get()
         while True:
             print("Command:", cmd)
             if cmd['type'] == 'SetMode':
+                gui_state['participantId'] = cmd['participantId']
                 if cmd['mode'] == 'LfD':
                     gui_state['mode'] = 'LfD'
                     lfd = LfD(cmd['participantId'])
                     lfd_task = asyncio.create_task(lfd.train(furhat.dyadicSpeech()))
-                    cmd = await cmds.__anext__()
+                    cmd = await event_queue.get()
                     print("Cancelling")
                     lfd_task.cancel()
                     print("Cancelled")
@@ -31,31 +37,50 @@ async def run_experiment(furhat, gui_state):
                 elif cmd['mode'] == 'ITL':
                     gui_state['mode'] = 'ITL'
                     print('ITL')
-                    cmd = await cmds.__anext__()
+                    cmd = await event_queue.get()
                 else:
                     gui_state['mode'] = ''
-                    cmd = await cmds.__anext__()
+                    cmd = await event_queue.get()
             elif cmd['type'] == 'SetITLMode':
                 if cmd['mode'] == 'Learning':
                     print('Learning')
                     gui_state['ITLMode'] = 'Learning'
                     itl_task = asyncio.create_task(furhat.learn())
                     async def cancel_itl():
-                        cmd = await cmds.__anext__()
+                        cmd = await event_queue.get()
                         if cmd['type'] != 'StopLearning':
                             print("Unexpected command:", cmd)
-                        itl_task.cancel()
                     cancel_task = asyncio.create_task(cancel_itl())
-                    await itl_task
-                    cancel_task.cancel()
-                    print("Cancelled")
+                    done, pending = await asyncio.wait([itl_task, cancel_task], return_when=asyncio.FIRST_COMPLETED)
+                    for task in pending:
+                        task.cancel()
+                    await asyncio.wait(pending)
                     gui_state['ITLMode'] = 'Idle'
-                cmd = await cmds.__anext__()
+                elif cmd['mode'] == 'Testing':
+                    print('Testing')
+                    gui_state['ITLMode'] = 'Testing'
+                    itl_task = asyncio.create_task(furhat.execute())
+                    async def cancel_itl():
+                        cmd = await event_queue.get()
+                        if cmd['type'] != 'StopLearning':
+                            print("Unexpected command:", cmd)
+                    cancel_task = asyncio.create_task(cancel_itl())
+                    done, pending = await asyncio.wait([itl_task, cancel_task], return_when=asyncio.FIRST_COMPLETED)
+                    print("Done:", done)
+                    for task in pending:
+                        task.cancel()
+                    await asyncio.wait(pending)
+                    print ("Done waiting")
+                    gui_state['ITLMode'] = 'Idle'
+                cmd = await event_queue.get()
             else:
                 print("Unknown command", cmd)
-                cmd = await cmds.__anext__()
+                cmd = await event_queue.get()
+    # except Exception as e:
+    #     print("Error:", repr(e))
     finally:
         gui_state_task.cancel()
+        event_handler_task.cancel()
 
 async def loop(args):
     furhat = FurhatAgent(host=args.host, port=args.port)
@@ -82,7 +107,7 @@ def main():
     parser.add_argument('--port', type=int, default=80)
     parser.add_argument('--sim', type=bool, default=False)
     args = parser.parse_args()
-    asyncio.run(loop(args))
+    asyncio.run(loop(args), debug=True)
 
 if __name__ == '__main__':
     main()

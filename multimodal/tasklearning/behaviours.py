@@ -2,7 +2,16 @@ from py_trees.behaviour import Behaviour
 from py_trees.composites import Sequence, Selector
 from py_trees.blackboard import Client
 from py_trees.common import Status, Access
+from py_trees.decorators import FailureIsSuccess, Decorator
 from lemminflect import getInflection
+import asyncio
+
+class FurhatBlackboard:
+    def __init__(self) -> None:
+        self.done_speaking = asyncio.Event()
+        self.done_listening = asyncio.Event()
+        self.speech = None
+        self.user_speech = None
 
 class Describable:
     def __init__(self, *args, description : str = None, **kwargs):
@@ -24,7 +33,7 @@ class Approach(Describable, Behaviour):
         if self.client.approached:
             return Status.SUCCESS
         else:
-            return Status.FAILURE
+            return Status.RUNNING
 
 class NullBehaviour(Behaviour):
     def __init__(self, *args, **kwargs):
@@ -46,7 +55,7 @@ class CustomBehavior(LearnableBehaviour, Sequence):
 
 class Conditional(LearnableBehaviour, Selector):
     def __init__(self, state, action, **kwargs):
-        super().__init__(name="Conditional", **kwargs)
+        super().__init__(name="Conditional", memory=True, **kwargs)
         self.if_statement = LearnableSequence(name="If")
         self.if_statement.add_children([state, action])
         self.else_statement = LearnableSequence(name="Else")
@@ -58,22 +67,48 @@ class AskBehavior(Describable, Behaviour):
         super().__init__(name='Ask', description=f'I ask {text}', **kwargs)
         self.text = text
         self.blackboard = Client()
-        self.blackboard.register_key(key="speech", access=Access.WRITE)
+        self.blackboard.register_key(key="furhat", access=Access.WRITE)
+        self.running = False
 
     def update(self):
-        self.blackboard.speech = self.text
-        return Status.SUCCESS
+        if not self.running:
+            self.blackboard.furhat.done_speaking.clear()
+            self.blackboard.furhat.speech = self.text + '?'
+            self.running = True
+            return Status.RUNNING
+        elif self.blackboard.furhat.done_speaking.is_set():
+            self.blackboard.furhat.speech = None
+            self.running = False
+            return Status.SUCCESS
+
+class SkipListen(Decorator):
+    def __init__(self, child, **kwargs):
+        super().__init__(child, **kwargs)
+        self.blackboard = Client()
+        self.blackboard.register_key(key="furhat", access=Access.WRITE)
+    
+    def update(self):
+        self.blackboard.furhat.done_listening.set()
+        return super().update()
 
 class SayBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):
         super().__init__(name='Say', description=f"I say {text}", **kwargs)
         self.text = text
         self.blackboard = Client()
-        self.blackboard.register_key("speech", Access.WRITE)
+        self.blackboard.register_key("furhat", Access.WRITE)
+        self.running = False
 
     def update(self):
-        self.blackboard.speech = self.text
-        return Status.SUCCESS
+        if not self.running:
+            self.blackboard.furhat.done_speaking.clear()
+            self.blackboard.furhat.speech = self.text
+            self.running = True
+            return Status.RUNNING
+        elif self.blackboard.furhat.done_speaking.is_set():
+            self.blackboard.furhat.speech = None
+            self.running = False
+            return Status.SUCCESS
 
 class PersonSays(Describable, Behaviour):
     def __init__(self, text, **kwargs):
@@ -82,11 +117,20 @@ class PersonSays(Describable, Behaviour):
             raise ValueError("Text cannot be empty")
         self.text = text
         self.blackboard = Client()
-        self.blackboard.register_key("person-speech", Access.READ)
+
+    def setup(self):
+        self.blackboard.register_key("furhat", Access.WRITE)
+        self.running = False
 
     def update(self):
-        speech = self.blackboard.person_speech
-        if speech == self.text:
-            return Status.SUCCESS
-        else:
-            return Status.FAILURE
+        print(self.blackboard)
+        if self.blackboard.furhat.done_listening.is_set():
+            self.running = False
+            if self.blackboard.furhat.user_speech == self.text:
+                return Status.SUCCESS
+            else:
+                return Status.FAILURE
+        elif not self.running:
+            self.blackboard.furhat.done_listening.clear()
+            self.running = True
+        return Status.RUNNING

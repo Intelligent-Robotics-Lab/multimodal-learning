@@ -2,14 +2,21 @@ import asyncio
 from multimodal.furhat import Furhat
 from multimodal.tasklearning.tasklearner import TaskLearner, Prompt, Response
 from multimodal.nlp.sentence_classifier import SentenceClassifier, SentenceType
+from multimodal.nlp.rephraser import get_model, rephrase
 from multimodal.utils import get_logger, get_data_path
+from multimodal.tasklearning.behaviours import AskBehavior
+from py_trees.trees import BehaviourTree
+from py_trees.blackboard import Client
+from py_trees.common import Status, Access
 from pickle import dump, load
-import dill
+from multimodal.tasklearning.behaviours import FurhatBlackboard
+import py_trees
 
 class DialogAgent:
     def __init__(self):
         self.task_tree = TaskLearner()
         self.sentence_classifier = SentenceClassifier()
+        self.model_gen = asyncio.get_event_loop().run_in_executor(None, get_model)
 
     async def say(self, phrase: str):
         pass
@@ -34,10 +41,12 @@ class DialogAgent:
                 await self.say(prompt)
 
     async def introduce(self):
+#         introduction =  """
+# Hello, my name is Furhat. I am a social robot that can learn to interact with people.
+# You can teach me new tasks by describing them to me. I will ask some questions about how to behave in different situations.
+# I will try to understand what you say, and do my best to follow your instructions.
+# Are you ready to begin?"""
         introduction =  """
-Hello, my name is Furhat. I am a social robot that can learn to interact with people.
-You can teach me new tasks by describing them to me. I will ask some questions about how to behave in different situations.
-I will try to understand what you say, and do my best to follow your instructions.
 Are you ready to begin?"""
         await self.say(introduction)
         await self.await_yes()
@@ -46,10 +55,6 @@ Are you ready to begin?"""
     async def learn(self, participant_id=0):
         logger = get_logger(f"Participant-{participant_id}", "learning_dialog", True)
         model_path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
-        # dill.detect.trace(True)
-        # print(dill.detect.errors(self.task_tree.root))
-        # print(dill.detect.baditems(self.task_tree.root))
-        dump(self.task_tree.tree, open(model_path, 'wb'))
         try:
             await self.introduce()
             gen = self.task_tree.generate_prompts()
@@ -84,8 +89,59 @@ Are you ready to begin?"""
                 await self.say("Okay, I think I've learned everything I need to know. Thank you for your help!")
         except asyncio.exceptions.CancelledError as e:
             print("Dialog cancelled")
+
+        try:
+            print("Waiting for model to load...")
+            model, tokenizer = await self.model_gen
+            for behavior in self.task_tree.root.iterate():
+                if isinstance(behavior, AskBehavior) and (behavior.text.startswith("if") or behavior.text.startswith("whether")):
+                    print("Rephrasing:", behavior.text)
+                    behavior.text = await asyncio.get_event_loop().run_in_executor(None, rephrase, "Ask " + behavior.text, model, tokenizer)
+                    print("Rephrased:", behavior.text)
+        except Exception as e:
+            print("Exception while rephrasing:", e)
+            return
         model_path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
         dump(self.task_tree.tree, open(model_path, 'wb'))
+
+    async def execute(self, participant_id=0):
+        await self.say("Great, now that you've taught me to be a concierge, I can try it myself. Here we go!")
+        print("Loading pkl...")
+        path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
+        tree: BehaviourTree = load(open(path, 'rb'))
+        snapshot_visitor = py_trees.visitors.SnapshotVisitor()
+        tree.visitors.append(snapshot_visitor)
+        client = Client(name="Furhat")
+        client.register_key(key="furhat", access=Access.WRITE)
+        client.register_key(key="approached", access=Access.WRITE)
+        client.approached = True
+        client.furhat = FurhatBlackboard()
+        print("Setting up")
+        tree.setup(timeout=15)
+        while True:
+            tree.tick()
+            print(py_trees.display.unicode_tree(
+                tree.root,
+                visited=snapshot_visitor.visited,
+                previously_visited=snapshot_visitor.visited
+            ))
+            if tree.root.status == Status.SUCCESS:
+                break
+            if tree.root.status == Status.FAILURE:
+                await self.say("I'm sorry, I didn't understand that. Please try again.")
+            if tree.root.status == Status.RUNNING:
+                if client.furhat.speech:
+                    await self.say(client.furhat.speech)
+                    client.furhat.speech = ''
+                    client.furhat.done_speaking.set()
+                else:
+                    client.furhat.user_speech = await self.listen()
+                    if client.furhat.user_speech == '':
+                        await self.say("I'm sorry, I didn't hear you.")
+                    else:
+                        client.furhat.done_listening.set()
+            await asyncio.sleep(0.1)
+
 
 class FurhatAgent(Furhat, DialogAgent):
     def __init__(self, host='localhost', port=80):
