@@ -4,6 +4,13 @@ from py_trees.blackboard import Client
 from py_trees.common import Status, Access
 from py_trees.decorators import FailureIsSuccess, Decorator
 from lemminflect import getInflection
+from tqdm import tqdm
+from functools import partialmethod
+tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
+from simcse import SimCSE
+from scipy.spatial.distance import cosine
+similarity_model = SimCSE("princeton-nlp/sup-simcse-bert-base-uncased")
+
 import asyncio
 
 class FurhatBlackboard:
@@ -126,7 +133,8 @@ class PersonSays(Describable, Behaviour):
         print(self.blackboard)
         if self.blackboard.furhat.done_listening.is_set():
             self.running = False
-            if self.blackboard.furhat.user_speech == self.text:
+            difference = cosine(*similarity_model.encode([self.text, self.blackboard.furhat.user_speech]))
+            if difference < 0.2:
                 return Status.SUCCESS
             else:
                 return Status.FAILURE

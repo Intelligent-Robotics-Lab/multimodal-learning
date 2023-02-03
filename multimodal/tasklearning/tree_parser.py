@@ -114,7 +114,12 @@ class TreeParser(TextParser):
     def build_behavior(self, parse: str, tree: BehaviourTree = None, current_node: Behaviour = None):
         fn, args = self._extract_fn(parse)
         if fn == 'resolve':
-            b = CustomBehavior(name=args[0])
+            if args[0] in self.learned:
+                b: Behaviour = deepcopy(self.learned[args[0]])
+                b.parent = None
+            else:
+                b = CustomBehavior(name=args[0])
+                self.learned[args[0]] = b
             if current_node:
                 current_node.add_child(b)
             return b
@@ -144,15 +149,13 @@ class TreeParser(TextParser):
                     raise ValueError("Says must be a child of a conditional")
             return b
         elif fn == 'label':
-            if args[0] in self.learned:
-                b = deepcopy(self.learned[args[0]])
-            else:
-                b = CustomBehavior(name=args[0])
+            b = CustomBehavior(name=args[0])
                 
             if tree is not None and current_node is not None:
                 b.add_child(current_node)
                 if not tree.replace_subtree(current_node.id, b):
                     raise ValueError("Could not replace subtree")
+                b.learned = True
             else:
                 raise ValueError("Label requires an existing tree")
             return b

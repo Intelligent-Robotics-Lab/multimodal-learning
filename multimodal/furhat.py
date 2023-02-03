@@ -89,19 +89,26 @@ class Furhat():
             self.subscriptions[name] = []
         queue = asyncio.Queue()
         self.subscriptions[name].append(queue)
+        exit_event = asyncio.Event()
         try:
             while True:
-                done, pending = await asyncio.wait([queue.get(), self.disconnect_event.wait()], return_when=asyncio.FIRST_COMPLETED)
-                for task in pending:
-                    task.cancel()
+                done, pending = await asyncio.wait([queue.get(), self.disconnect_event.wait(), exit_event.wait()], return_when=asyncio.FIRST_COMPLETED)
                 if self.disconnect_event.is_set():
                     raise DisconnectError
-                try:
-                    yield done.pop().result()
-                except asyncio.CancelledError:
-                    print("Subscribing to cancelled queue")
+                yield done.pop().result()
+        except asyncio.CancelledError:
+            exit_event.set()
+            raise
+        except GeneratorExit:
+            exit_event.set()
+            raise
         finally:
+            for task in pending:
+                task.cancel()
+            await asyncio.wait(pending, return_when=asyncio.ALL_COMPLETED)
+            print("Subscription closed")
             self.subscriptions[name].remove(queue)
+
 
     async def speech(self, return_silence=False) -> AsyncIterator[UserSpeech]:
         gen = self.subscribe("furhatos.event.senses.SenseSpeech")
@@ -146,10 +153,15 @@ class Furhat():
                     num_words_prev = len(prev.text.split(' '))
                     prev = s
         except GeneratorExit:
-            await self.send({ "event_name": "furhatos.app.furhatdriver.StopListen" })
+            pass
         finally:
+            await self.send({ "event_name": "furhatos.app.furhatdriver.StopListen" })
             gen.aclose()
             task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     async def say(self, text: str, asynchronous: bool = False, ifSilent: bool = False, abort: bool = False, interruptable: bool = False):
         subscription = self.subscribe("furhatos.event.monitors.MonitorSpeechEnd")
@@ -159,8 +171,8 @@ class Furhat():
             break
         subscription.aclose()
 
-    async def listen(self, endSilTimeout: int = 1000):
-        event = { "event_name": 'furhatos.app.furhatdriver.CustomListen', "endSilTimeout": endSilTimeout }
+    async def listen(self, endSilTimeout: int = 1000, noSpeechTimeout: int = 10000) -> str:
+        event = { "event_name": 'furhatos.app.furhatdriver.CustomListen', "endSilTimeout": endSilTimeout, "noSpeechTimeout": noSpeechTimeout}
         await self.send(event)
         async for event in self.speech(return_silence=True):
             self.logger.info(str(event))
@@ -169,9 +181,9 @@ class Furhat():
 if __name__ == "__main__":
     async def main():
         async with Furhat("141.210.193.186", 80).connect() as furhat:
-            event = { "event_name": 'furhatos.app.furhatdriver.CustomListen', "endSilTimeout": 1000, "infinite": True }
-            await furhat.send(event)
-            async for event in furhat.subscribe("furhatos.event.senses.SenseSpeech"):
+            # event = { "event_name": 'furhatos.app.furhatdriver.CustomListen', "endSilTimeout": 1000, "infinite": True }
+            # await furhat.send(event)
+            async for event in furhat.dyadicSpeech():
                 print(event)
 
     asyncio.run(main())

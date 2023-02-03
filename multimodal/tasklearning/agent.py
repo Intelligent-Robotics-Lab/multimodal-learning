@@ -41,13 +41,14 @@ class DialogAgent:
                 await self.say(prompt)
 
     async def introduce(self):
-#         introduction =  """
-# Hello, my name is Furhat. I am a social robot that can learn to interact with people.
-# You can teach me new tasks by describing them to me. I will ask some questions about how to behave in different situations.
-# I will try to understand what you say, and do my best to follow your instructions.
-# Are you ready to begin?"""
         introduction =  """
+Hello, my name is Alpha. I am a social robot that can learn to interact with people.
+You can teach me new tasks by describing them to me. I will ask some questions about how to behave in different situations.
+I will try to understand what you say, and do my best to follow your instructions.
+If at any point I misunderstand you, let me know so I can correct the mistake.
 Are you ready to begin?"""
+#         introduction =  """
+# Are you ready to begin?"""
         await self.say(introduction)
         await self.await_yes()
         await self.say("Okay, let's begin!")

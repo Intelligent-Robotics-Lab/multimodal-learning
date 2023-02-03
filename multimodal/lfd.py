@@ -3,14 +3,23 @@ from multimodal.furhat import UserSpeech, SpeakerRole
 from multimodal.utils import get_logger, get_data_path
 from typing import AsyncGenerator
 import pickle
+import asyncio
 import numpy as np
+from tqdm import tqdm
+from functools import partialmethod
+tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
+from simcse import SimCSE
+from scipy.spatial.distance import cosine
+similarity_model = SimCSE("princeton-nlp/sup-simcse-bert-base-uncased")
+
 
 class LfD():
     def __init__(self, participant_id: str = '0'):
-        self.embedding_model = sentence_transformers.SentenceTransformer('all-mpnet-base-v2')
         self.pairs = []
-        self.logger = get_logger(f'LfD_{participant_id}')
+        self.logger = get_logger(f'LfD_{participant_id}', unique=True)
         self.participant_id = participant_id
+        if (get_data_path('lfd') / f'p_{self.participant_id}.pkl').exists():
+            self.load(vectorize=False)
         self.actions = None
         self.states = None
 
@@ -19,16 +28,16 @@ class LfD():
         with open(path, 'wb') as f:
             pickle.dump(self.pairs, f)
 
-    def load(self):
+    def load(self, vectorize=True):
         path = get_data_path('lfd') / f'p_{self.participant_id}.pkl'
         with open(path, 'rb') as f:
             self.pairs = pickle.load(f)
-        self.vectorize()
+        if vectorize:
+            self.vectorize()
 
     async def train(self, data: AsyncGenerator[UserSpeech, None]):
         state = None
         action = None
-        self.pairs = []
         try:
             async for speech in data:
                 if speech.role == SpeakerRole.CUSTOMER:
@@ -49,16 +58,19 @@ class LfD():
                         action = speech.text
                     else:
                         action = action + ' ' + speech.text
-        except StopAsyncIteration:
+        except asyncio.CancelledError:
+            print("Cancelled")
             if action is not None:
                 if state is None:
                     state = ''
                 self.pairs.append((state, action))
+        print(self.pairs)
 
     def vectorize(self):
         states, actions = zip(*self.pairs)
-        states = self.embedding_model.encode(states)
-        actions = np.concatenate([np.zeros((1, 768)), self.embedding_model.encode(actions)[:-1]])
+        print(states)
+        states = similarity_model.encode(list(states), return_numpy=True)
+        actions = np.concatenate([np.zeros((1, 768)), similarity_model.encode(list(actions), return_numpy=True)[:-1]])
         self.actions = actions
         self.states = states
 
@@ -66,8 +78,8 @@ class LfD():
         if prev_action == '':
             action_embedding = np.zeros((1, 768))
         else:
-            action_embedding = self.embedding_model.encode([prev_action])
-        state_embedding = self.embedding_model.encode([state])
+            action_embedding = similarity_model.encode([prev_action], return_numpy=True)
+        state_embedding = similarity_model.encode([state], return_numpy=True)
         dist = 0.8 * np.linalg.norm(self.states - state_embedding, axis=1) + 0.2 * np.linalg.norm(self.actions - action_embedding, axis=1)
         match_idx = np.argmin(dist)
         return self.pairs[match_idx][1], dist[match_idx]
