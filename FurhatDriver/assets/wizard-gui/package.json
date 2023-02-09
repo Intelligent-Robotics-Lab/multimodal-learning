@@ -11,7 +11,8 @@
   "dependencies": {
     "@types/ws": "^8.5.3",
     "furhat-gui": "^0.1.0",
-    "vue": "^3.2.33"
+    "vue": "^3.2.33",
+    "vue-router": "^4.1.6"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.1.0",
