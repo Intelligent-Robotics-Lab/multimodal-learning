@@ -5,8 +5,10 @@ root:
       - '{request} say {$1:phrase} to {person-obj}'
       - '{request} say {$1:phrase}'
       - '{request} say to {person-obj} {$1:phrase}'
+  - name: 'tell'
+    parse: 'tell($1)'
+    sentences:
       - '{request} tell {person-obj} {$1:phrase}'
-      # - 'tell {person-obj} that {$1:that-phrase}'
   - name: 'action'
     parse: 'resolve($1)'
     sentences:

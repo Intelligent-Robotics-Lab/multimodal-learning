@@ -3,6 +3,7 @@ from py_trees.trees import BehaviourTree
 from transformers import AutoTokenizer, AutoModelForTokenClassification, T5ForConditionalGeneration, T5Tokenizer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
 from multimodal.tasklearning.behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
+from multimodal.nlp.rephraser import Rephraser
 from multimodal.utils import get_model_path
 from copy import deepcopy
 import torch
@@ -49,6 +50,7 @@ class TextParser:
         self.tokenizer: T5Tokenizer = T5Tokenizer.from_pretrained("t5-base", model_max_length=128)
         self.model = T5ForConditionalGeneration.from_pretrained(get_model_path("parse-model")).to('cuda')
         self.custom_token_ids = self.tokenizer.encode('if( says([phrase_0]), say([phrase_1], ask([phrase_2]))) resolve() label()', return_tensors='pt')
+        self.rephraser = Rephraser()
 
     def parse(self, sample: str):
         if not sample:
@@ -131,12 +133,25 @@ class TreeParser(TextParser):
                 current_node.add_child(b)
             return b
         elif fn == 'ask':
-            b = AskBehavior(text=args[0])
+            text = args[0]
+            if text.startswith("if") or text.startswith("whether") or text.startswith("what"):
+                print("Rephrasing:", text)
+                text = self.rephraser.rephrase_ask("Ask " + text)
+                print("Rephrased:", text)
+            b = AskBehavior(text=text)
             if current_node:
                 current_node.add_child(b)
             return b
         elif fn == 'say':
             b = SayBehavior(text=args[0])
+            if current_node:
+                current_node.add_child(b)
+            return b
+        elif fn == 'tell':
+            print("Rephrasing:", args[0])
+            text = self.rephraser.rephrase_tell("Tell them " + args[0])
+            print("Rephrased:", text)
+            b = SayBehavior(text=text)
             if current_node:
                 current_node.add_child(b)
             return b

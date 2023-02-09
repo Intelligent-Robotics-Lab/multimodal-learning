@@ -2,9 +2,8 @@ import asyncio
 from multimodal.furhat import Furhat
 from multimodal.tasklearning.tasklearner import TaskLearner, Prompt, Response
 from multimodal.nlp.sentence_classifier import SentenceClassifier, SentenceType
-from multimodal.nlp.rephraser import get_model, rephrase
 from multimodal.utils import get_logger, get_data_path
-from multimodal.tasklearning.behaviours import AskBehavior
+from multimodal.tasklearning.behaviours import AskBehavior, SayBehavior
 from py_trees.trees import BehaviourTree
 from py_trees.blackboard import Client
 from py_trees.common import Status, Access
@@ -16,7 +15,7 @@ class DialogAgent:
     def __init__(self):
         self.task_tree = TaskLearner()
         self.sentence_classifier = SentenceClassifier()
-        self.model_gen = asyncio.get_event_loop().run_in_executor(None, get_model)
+        # self.model_gen = asyncio.get_event_loop().run_in_executor(None, get_model)
 
     async def say(self, phrase: str):
         pass
@@ -106,17 +105,21 @@ Are you ready to begin?"""
         except asyncio.exceptions.CancelledError as e:
             print("Dialog cancelled")
 
-        try:
-            print("Waiting for model to load...")
-            model, tokenizer = await self.model_gen
-            for behavior in self.task_tree.root.iterate():
-                if isinstance(behavior, AskBehavior) and (behavior.text.startswith("if") or behavior.text.startswith("whether")):
-                    print("Rephrasing:", behavior.text)
-                    behavior.text = await asyncio.get_event_loop().run_in_executor(None, rephrase, "Ask " + behavior.text, model, tokenizer)
-                    print("Rephrased:", behavior.text)
-        except Exception as e:
-            print("Exception while rephrasing:", e)
-            return
+        # try:
+        #     print("Waiting for model to load...")
+        #     model, tokenizer = await self.model_gen
+        #     for behavior in self.task_tree.root.iterate():
+        #         if isinstance(behavior, AskBehavior) and (behavior.text.startswith("if") or behavior.text.startswith("whether") or behavior.text.startswith("what")):
+        #             print("Rephrasing:", behavior.text)
+        #             behavior.text = await asyncio.get_event_loop().run_in_executor(None, rephrase_ask, "Ask " + behavior.text, model, tokenizer)
+        #             print("Rephrased:", behavior.text)
+        #         # elif isinstance(behavior, SayBehavior):
+        #         #     print("Rephrasing:", behavior.text)
+        #         #     behavior.text = await asyncio.get_event_loop().run_in_executor(None, rephrase, "Say " + behavior.text, model, tokenizer)
+        #         #     print("Rephrased:", behavior.text
+        # except Exception as e:
+        #     print("Exception while rephrasing:", e)
+        #     return
         model_path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
         dump(self.task_tree.tree, open(model_path, 'wb'))
 
