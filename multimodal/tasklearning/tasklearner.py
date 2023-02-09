@@ -38,6 +38,11 @@ class TaskLearner:
         self.root.add_child(Approach())
         self.parser = TreeParser()
 
+    def reset(self):
+        self.root = CustomBehavior(name="Root")
+        self.tree = BehaviourTree(root=self.root)
+        self.root.add_child(Approach())
+    
     def find_unlearned_behaviour(self, parent : Behaviour = None):
         if parent is None:
             parent = self.root
@@ -65,10 +70,10 @@ class TaskLearner:
                         prev = self.root.children[-1]
                         if isinstance(prev, Conditional):
                             if len(prev.else_statement.children) >= 1:
-                                yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description} or {prev.else_statement.description}', False)
+                                # yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description} or {prev.else_statement.description}', False)
                                 response = yield Prompt("What should I do next?", True)
                             else:
-                                yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description}', False)
+                                # yield Prompt(f'Great, now I know what to do if {prev.if_statement.children[0].description}', False)
                                 response = yield Prompt("What should I do next?", True)
                         else:
                             response: Response = yield Prompt(f'What should I do after {prev.description}?', True)
@@ -102,7 +107,8 @@ class TaskLearner:
 
                 elif isinstance(unlearned, Conditional):
                     if not unlearned.if_statement.learned:
-                        response = yield Prompt(f'Ok, should I do anything else when {unlearned.if_statement.children[0].description}?', True)
+                        response = yield Prompt(f'So when {unlearned.if_statement.children[0].description}, I will {" and ".join([c.description[2:] for c in unlearned.if_statement.children[1:]])}', False)
+                        response = yield Prompt(f'Is there anything else I should do when {unlearned.if_statement.children[0].description}?', True)
                         if response.sentence_type == SentenceType.INSTRUCTION:
                             self.parser.append_tree(response.text, self.tree, unlearned.if_statement)
                         elif response.sentence_type == SentenceType.DONE:
@@ -124,7 +130,10 @@ class TaskLearner:
                                 action = self.parser.append_tree(response.text)
                                 unlearned.else_statement.add_child(action)
                             elif response.sentence_type == SentenceType.DONE:
-                                unlearned.learned = True
+                                unlearned.else_statement.learned = True
+                        elif response.sentence_type == SentenceType.MISRECOGNIZED:
+                            unlearned.if_statement.remove_child(unlearned.if_statement.children[-1])
+                            yield Prompt("I'm sorry I misheard you, let's try again", False)
                         else:
                             print(f"Unhandled response: {response}")
                             yield Prompt("Oh, I appear to be confused, let me think a minute", False)
@@ -133,8 +142,11 @@ class TaskLearner:
                         if response.sentence_type == SentenceType.INSTRUCTION:
                             self.parser.append_tree(response.text, self.tree, unlearned.else_statement)
                         elif response.sentence_type == SentenceType.DONE:
-                            unlearned.learned = True
+                            unlearned.else_statement.learned = True
                             yield Prompt(f"Okay, I've learned what to do when the person says {unlearned.else_statement.description}", False)
+                        elif response.sentence_type == SentenceType.MISRECOGNIZED:
+                            unlearned.else_statement.remove_child(unlearned.else_statement.children[-1])
+                            yield Prompt("I'm sorry I misheard you, let's try again", False)
                         else:
                             print(f"Unhandled response 2: {response}")
                             yield Prompt("Oh, I appear to be confused, let me think a minute", False)

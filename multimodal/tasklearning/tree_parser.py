@@ -70,7 +70,7 @@ class TextParser:
         scores, _ = torch.max(torch.nn.functional.softmax(logits, dim=1), dim=1)
         score = torch.prod(scores)
         print(score)
-        if score < 0.7:
+        if score < 0.8:
             raise ParseError("Low confidence in parse")
         parse = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
         print(sentence_anon)

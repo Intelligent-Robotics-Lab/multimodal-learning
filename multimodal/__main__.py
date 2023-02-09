@@ -28,14 +28,6 @@ async def run_experiment(furhat: FurhatAgent, gui_state):
                     gui_state['mode'] = 'LfD'
                     print('LfD')
                     cmd = await event_queue.get()
-                    # lfd = LfD(cmd['participantId'])
-                    # lfd_task = asyncio.create_task(lfd.train(furhat.dyadicSpeech()))
-                    # cmd = await event_queue.get()
-                    # print("Cancelling")
-                    # lfd_task.cancel()
-                    # print("Cancelled")
-                    # await asyncio.get_event_loop().run_in_executor(None, lfd.vectorize)
-                    # lfd.save()
                 elif cmd['mode'] == 'ITL':
                     gui_state['mode'] = 'ITL'
                     print('ITL')
@@ -52,8 +44,8 @@ async def run_experiment(furhat: FurhatAgent, gui_state):
                     cmd = await event_queue.get()
                     print("Cancelling")
                     lfd_task.cancel()
+                    await lfd_task
                     print("Cancelled")
-                    # await asyncio.get_event_loop().run_in_executor(None, lfd.vectorize)
                     lfd.save()
                     print(lfd.pairs)
                     gui_state['LfDMode'] = 'Idle'
@@ -68,14 +60,14 @@ async def run_experiment(furhat: FurhatAgent, gui_state):
                     async def cancel_lfd():
                         cmd = await event_queue.get()
                         cancel.set()
-                    lfd_task = asyncio.create_task(cancel_lfd())
+                    cancel_task = asyncio.create_task(cancel_lfd())
                     while not cancel.is_set():
                         speech = await furhat.listen(noSpeechTimeout=2000)
                         action, confidence = lfd.get_action(speech, action)
                         await furhat.say(action)
                     cmd = await event_queue.get()
                     print("Cancelling")
-                    lfd_task.cancel()
+                    cancel_task.cancel()
                     print("Cancelled")
                     gui_state['LfDMode'] = 'Idle'
                 cmd = await event_queue.get()
@@ -145,7 +137,7 @@ def main():
     parser.add_argument('--port', type=int, default=80)
     parser.add_argument('--sim', type=bool, default=False)
     args = parser.parse_args()
-    asyncio.run(loop(args), debug=True)
+    asyncio.run(loop(args))
 
 if __name__ == '__main__':
     main()

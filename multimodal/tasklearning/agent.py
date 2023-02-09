@@ -49,13 +49,23 @@ If at any point I misunderstand you, let me know so I can correct the mistake.
 Are you ready to begin?"""
 #         introduction =  """
 # Are you ready to begin?"""
-        await self.say(introduction)
+        await self.say("Hello, my name is Alpha. I am a social robot that can learn to interact with people.")
+        await self.say("You can teach me new tasks by describing them to me. I will ask some questions about how to behave in different situations.")
+        await self.say("I will try to understand what you say, and do my best to follow your instructions.")
+        await self.say("If at any point I misunderstand you, let me know so I can correct the mistake.")
+        await self.say("Are you ready to begin?")
         await self.await_yes()
         await self.say("Okay, let's begin!")
 
     async def learn(self, participant_id=0):
         logger = get_logger(f"Participant-{participant_id}", "learning_dialog", True)
         model_path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
+        # if model_path.exists():
+        #     self.task_tree.tree = load(open(model_path, 'rb'))
+        #     self.task_tree.root = self.task_tree.tree.root
+        # else:
+        #     self.task_tree.reset()
+        self.task_tree.reset()
         try:
             await self.introduce()
             gen = self.task_tree.generate_prompts()
@@ -71,9 +81,14 @@ Are you ready to begin?"""
                         sentence_type = self.sentence_classifier.classify_next(user_text)
                         response = Response(user_text, sentence_type)
                         logger.info(str(response))
+                        unknown_count = 0
                         while sentence_type in [SentenceType.UNCERTAIN, SentenceType.UNKNOWN]:
                             if sentence_type == SentenceType.UNKNOWN:
-                                await self.say("I'm sorry, I didn't understand that. Please try again.")
+                                if unknown_count > 1:
+                                    await self.say("I'm sorry, I still don't understand what you're trying to say. Try using simpler words, or breaking your command into smaller steps.")
+                                else:
+                                    await self.say("I'm sorry, I didn't understand that. Please try again.")
+                                unknown_count += 1
                             else:
                                 await self.say("If you aren't sure, that's ok. Continue when you're ready")
                             user_text = await self.listen()
@@ -120,6 +135,7 @@ Are you ready to begin?"""
         print("Setting up")
         tree.setup(timeout=15)
         while True:
+            print(client.furhat.done_listening.is_set())
             tree.tick()
             print(py_trees.display.unicode_tree(
                 tree.root,
@@ -131,11 +147,16 @@ Are you ready to begin?"""
             if tree.root.status == Status.FAILURE:
                 await self.say("I'm sorry, I didn't understand that. Please try again.")
             if tree.root.status == Status.RUNNING:
+                print(client.furhat.speech)
+                print(client.furhat.done_listening.is_set())
+                print(client.furhat.done_speaking.is_set())
                 if client.furhat.speech:
+                    client.furhat.done_listening.clear()
                     await self.say(client.furhat.speech)
+                    print("Said:", client.furhat.speech)
                     client.furhat.speech = ''
                     client.furhat.done_speaking.set()
-                else:
+                elif not client.furhat.done_listening.is_set():
                     client.furhat.user_speech = await self.listen()
                     if client.furhat.user_speech == '':
                         await self.say("I'm sorry, I didn't hear you.")

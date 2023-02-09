@@ -16,9 +16,9 @@ similarity_model = SimCSE("princeton-nlp/sup-simcse-bert-base-uncased")
 class LfD():
     def __init__(self, participant_id: str = '0'):
         self.pairs = []
-        self.logger = get_logger(f'LfD_{participant_id}', unique=True)
+        self.logger = get_logger(f'LfD_{participant_id}', 'lfd', unique=True)
         self.participant_id = participant_id
-        if (get_data_path('lfd') / f'p_{self.participant_id}.pkl').exists():
+        if participant_id != '-1' and (get_data_path('lfd') / f'p_{self.participant_id}.pkl').exists():
             self.load(vectorize=False)
         self.actions = None
         self.states = None
@@ -26,12 +26,14 @@ class LfD():
     def save(self):
         path = get_data_path('lfd') / f'p_{self.participant_id}.pkl'
         with open(path, 'wb') as f:
+            print("Saving pairs", self.pairs, "Particpant", self.participant_id)
             pickle.dump(self.pairs, f)
 
     def load(self, vectorize=True):
         path = get_data_path('lfd') / f'p_{self.participant_id}.pkl'
         with open(path, 'rb') as f:
             self.pairs = pickle.load(f)
+            print(self.pairs)
         if vectorize:
             self.vectorize()
 

@@ -69,9 +69,17 @@ class Conditional(LearnableBehaviour, Selector):
         self.add_child(self.if_statement)
         self.add_child(self.else_statement)
 
+    @property
+    def learned(self):
+        return self.if_statement.learned and self.else_statement.learned
+    
+    @learned.setter
+    def learned(self, value):
+        pass
+
 class AskBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):
-        super().__init__(name='Ask', description=f'I ask {text}', **kwargs)
+        super().__init__(name='Ask', description=f'I ask, {text}', **kwargs)
         self.text = text
         self.blackboard = Client()
         self.blackboard.register_key(key="furhat", access=Access.WRITE)
@@ -100,7 +108,7 @@ class SkipListen(Decorator):
 
 class SayBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):
-        super().__init__(name='Say', description=f"I say {text}", **kwargs)
+        super().__init__(name='Say', description=f'I say, "{text}"', **kwargs)
         self.text = text
         self.blackboard = Client()
         self.blackboard.register_key("furhat", Access.WRITE)
@@ -131,14 +139,15 @@ class PersonSays(Describable, Behaviour):
 
     def update(self):
         print(self.blackboard)
-        if self.blackboard.furhat.done_listening.is_set():
+        if self.running and self.blackboard.furhat.done_listening.is_set():
             self.running = False
             difference = cosine(*similarity_model.encode([self.text, self.blackboard.furhat.user_speech]))
-            if difference < 0.2:
+            print(self.text, self.blackboard.furhat.user_speech, difference)
+            if difference < 0.4:
                 return Status.SUCCESS
             else:
                 return Status.FAILURE
         elif not self.running:
-            self.blackboard.furhat.done_listening.clear()
+            # self.blackboard.furhat.done_listening.clear()
             self.running = True
         return Status.RUNNING
