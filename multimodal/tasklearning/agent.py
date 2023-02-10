@@ -124,10 +124,14 @@ Are you ready to begin?"""
         dump(self.task_tree.tree, open(model_path, 'wb'))
 
     async def execute(self, participant_id=0):
-        await self.say("Great, now that you've taught me to be a concierge, I can try it myself. Here we go!")
         print("Loading pkl...")
-        path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
-        tree: BehaviourTree = load(open(path, 'rb'))
+        try:
+            path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
+            tree: BehaviourTree = load(open(path, 'rb'))
+        except FileNotFoundError:
+            print("No ITL data for participant", participant_id)
+            return
+        await self.say("Great, now that you've taught me to be a concierge, I can try it myself. Here we go!")
         snapshot_visitor = py_trees.visitors.SnapshotVisitor()
         tree.visitors.append(snapshot_visitor)
         client = Client(name="Furhat")

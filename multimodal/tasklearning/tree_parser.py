@@ -134,7 +134,7 @@ class TreeParser(TextParser):
             return b
         elif fn == 'ask':
             text = args[0]
-            if text.startswith("if") or text.startswith("whether") or text.startswith("what"):
+            if text.startswith("if") or text.startswith("whether") or text.startswith("what") or text.startswith("for"):
                 print("Rephrasing:", text)
                 text = self.rephraser.rephrase_ask("Ask " + text)
                 print("Rephrased:", text)

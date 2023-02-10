@@ -3,7 +3,7 @@ import websockets.client as client
 import websockets
 import json
 from enum import Enum
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from typing import Dict, List, AsyncIterator, AsyncGenerator
 from .utils import get_logger
 
@@ -47,6 +47,7 @@ class Furhat():
         self.subscriptions: Dict[str, List[asyncio.Queue]] = {}
         self.user_locations = {}
         self.logger = get_logger("Furhat", "furhat", True)
+        self.custom_loggers = []
 
     @asynccontextmanager
     async def connect(self):
@@ -65,6 +66,13 @@ class Furhat():
             heartbeat_task.cancel()
             await self.websocket.close()
             self.subscriptions = {}
+
+    @contextmanager
+    def log(self, name, folder="furhat"):
+        logger = get_logger(name, folder, True)
+        self.custom_loggers.append(logger)
+        yield logger
+        self.custom_loggers.remove(logger)
 
     async def send(self, event):
         result = await self.websocket.send(json.dumps(event))
@@ -170,6 +178,9 @@ class Furhat():
         text = text.replace('&', 'and')
         subscription = self.subscribe("furhatos.event.monitors.MonitorSpeechEnd")
         event = { "event_name": 'furhatos.event.actions.ActionSpeech', "text": text, "asynchronous": asynchronous, "ifSilent": ifSilent, "abort": abort, "yielding": interruptable }
+        self.logger.info(str(event))
+        for logger in self.custom_loggers:
+            logger.info(f"Robot: {text}")
         await self.send(event)
         async for event in subscription:
             break
@@ -180,6 +191,8 @@ class Furhat():
         await self.send(event)
         async for event in self.speech(return_silence=True):
             self.logger.info(str(event))
+            for logger in self.custom_loggers:
+                logger.info(f"User: {event.text}")
             return event.text
 
 if __name__ == "__main__":
