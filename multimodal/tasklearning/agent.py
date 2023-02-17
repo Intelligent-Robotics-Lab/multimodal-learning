@@ -123,7 +123,7 @@ Are you ready to begin?"""
         model_path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
         dump(self.task_tree.tree, open(model_path, 'wb'))
 
-    async def execute(self, participant_id=0):
+    async def execute(self, participant_id=0, skip_intro=False):
         print("Loading pkl...")
         try:
             path = get_data_path(f"itl-models/participant-{participant_id}.pkl")
@@ -131,7 +131,8 @@ Are you ready to begin?"""
         except FileNotFoundError:
             print("No ITL data for participant", participant_id)
             return
-        await self.say("Great, now that you've taught me to be a concierge, I can try it myself. Here we go!")
+        if not skip_intro:
+            await self.say("Great, now that you've taught me to be a concierge, I can try it myself. Here we go!")
         snapshot_visitor = py_trees.visitors.SnapshotVisitor()
         tree.visitors.append(snapshot_visitor)
         client = Client(name="Furhat")
@@ -140,36 +141,37 @@ Are you ready to begin?"""
         client.approached = True
         client.furhat = FurhatBlackboard()
         print("Setting up")
-        tree.setup(timeout=15)
         while True:
-            print(client.furhat.done_listening.is_set())
-            tree.tick()
-            print(py_trees.display.unicode_tree(
-                tree.root,
-                visited=snapshot_visitor.visited,
-                previously_visited=snapshot_visitor.visited
-            ))
-            if tree.root.status == Status.SUCCESS:
-                break
-            if tree.root.status == Status.FAILURE:
-                await self.say("I'm sorry, I didn't understand that. Please try again.")
-            if tree.root.status == Status.RUNNING:
-                print(client.furhat.speech)
+            tree.setup(timeout=15)
+            while True:
                 print(client.furhat.done_listening.is_set())
-                print(client.furhat.done_speaking.is_set())
-                if client.furhat.speech:
-                    client.furhat.done_listening.clear()
-                    await self.say(client.furhat.speech)
-                    print("Said:", client.furhat.speech)
-                    client.furhat.speech = ''
-                    client.furhat.done_speaking.set()
-                elif not client.furhat.done_listening.is_set():
-                    client.furhat.user_speech = await self.listen()
-                    if client.furhat.user_speech == '':
-                        await self.say("I'm sorry, I didn't hear you.")
-                    else:
-                        client.furhat.done_listening.set()
-            await asyncio.sleep(0.1)
+                tree.tick()
+                print(py_trees.display.unicode_tree(
+                    tree.root,
+                    visited=snapshot_visitor.visited,
+                    previously_visited=snapshot_visitor.visited
+                ))
+                if tree.root.status == Status.SUCCESS:
+                    break
+                if tree.root.status == Status.FAILURE:
+                    await self.say("I'm sorry, I didn't understand that. Please try again.")
+                if tree.root.status == Status.RUNNING:
+                    print(client.furhat.speech)
+                    print(client.furhat.done_listening.is_set())
+                    print(client.furhat.done_speaking.is_set())
+                    if client.furhat.speech:
+                        client.furhat.done_listening.clear()
+                        await self.say(client.furhat.speech)
+                        print("Said:", client.furhat.speech)
+                        client.furhat.speech = ''
+                        client.furhat.done_speaking.set()
+                    elif not client.furhat.done_listening.is_set():
+                        client.furhat.user_speech = await self.listen()
+                        if client.furhat.user_speech == '':
+                            await self.say("I'm sorry, I didn't hear you.")
+                        else:
+                            client.furhat.done_listening.set()
+                await asyncio.sleep(0.1)
 
 
 class FurhatAgent(Furhat, DialogAgent):

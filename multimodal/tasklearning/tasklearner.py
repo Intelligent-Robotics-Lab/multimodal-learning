@@ -98,15 +98,24 @@ class TaskLearner:
                                 yield Prompt("I'm sorry I misheard you, let's go back and try again", False)
                         else:
                             # Existing behavior
-                            response = yield Prompt(f'What is the next step of {unlearned.gerund}?', True)
+                            if isinstance(unlearned.children[-1], Conditional):
+                                response = yield Prompt(f'What is the next step of {unlearned.gerund}?', True)
+                            else:
+                                response = yield Prompt(f'After {unlearned.children[-1].description} what is the next step of {unlearned.gerund}?', True)
                             if response.sentence_type == SentenceType.INSTRUCTION:
                                 self.parser.append_tree(response.text, self.tree, unlearned)
                             elif response.sentence_type == SentenceType.DONE:
                                 unlearned.learned = True
                                 yield Prompt(f"Okay, I've learned how to {unlearned.name}", False)
+                            elif response.sentence_type == SentenceType.MISRECOGNIZED:
+                                unlearned.remove_child(unlearned.children[-1])
+                                yield Prompt("I'm sorry I misheard you, let's go back and try again", False)
 
                 elif isinstance(unlearned, Conditional):
                     if not unlearned.if_statement.learned:
+                        if len(unlearned.if_statement.children) < 2:
+                            unlearned.parent.remove_child(unlearned)
+                            continue
                         response = yield Prompt(f'So when {unlearned.if_statement.children[0].description}, I will {" and ".join([c.description[2:] for c in unlearned.if_statement.children[1:]])}', False)
                         response = yield Prompt(f'Is there anything else I should do when {unlearned.if_statement.children[0].description}?', True)
                         if response.sentence_type == SentenceType.INSTRUCTION:

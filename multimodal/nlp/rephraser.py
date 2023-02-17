@@ -13,7 +13,7 @@ class Rephraser:
 f'''The following are instructions telling a store employee what to say to a customer and his corresponding responses.
 Instruction: Ask the customer whether they would like tea or coffee.
 Response: "Would you like tea or coffee?"
-Instruction: Ask them whether they would like help with their luggage.
+Instruction: Ask them if they would like help with their luggage.
 Response: "Would you like help with your luggage?"
 Instruction: {phrase}.
 Response: '''

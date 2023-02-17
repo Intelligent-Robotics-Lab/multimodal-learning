@@ -4,14 +4,14 @@ import datetime
 from pathlib import Path
 
 def get_logger(name: str, folder: str = None, unique: bool = False):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
     if unique:
         name = name + '-' + datetime.datetime.now().strftime('%Y%m%d%H%M%S') + '.txt'
     path = files('multimodal') / 'logs'
     if folder is not None:
         path = path / folder
     path = path / name
+    logger = logging.getLogger(str(path))
+    logger.setLevel(logging.DEBUG)
     with as_file(path) as p:
         p.parent.mkdir(parents=True, exist_ok=True)
         handler = logging.FileHandler(p, mode='w+')

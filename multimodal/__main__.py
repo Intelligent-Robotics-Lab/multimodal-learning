@@ -52,24 +52,26 @@ async def run_experiment(furhat: FurhatAgent, gui_state):
                 elif cmd['mode'] == 'Testing':
                     print('Testing')
                     gui_state['LfDMode'] = 'Testing'
-                    lfd = LfD(gui_state['participantId'])
-                    load_task = asyncio.get_event_loop().run_in_executor(None, lfd.load)
-                    await load_task
-                    action = ''
-                    cancel = asyncio.Event()
-                    async def cancel_lfd():
-                        cmd = await event_queue.get()
-                        cancel.set()
-                    cancel_task = asyncio.create_task(cancel_lfd())
-                    while not cancel.is_set():
-                        speech = await furhat.listen(noSpeechTimeout=2000)
-                        if cancel.is_set():
-                            break
-                        action, confidence = lfd.get_action(speech, action)
-                        await furhat.say(action)
-                    cmd = await event_queue.get()
-                    print("Cancelling")
-                    cancel_task.cancel()
+                    try:
+                        lfd = LfD(gui_state['participantId'])
+                        load_task = asyncio.get_event_loop().run_in_executor(None, lfd.load)
+                        await load_task
+                        action = ''
+                        cancel = asyncio.Event()
+                        async def cancel_lfd():
+                            cmd = await event_queue.get()
+                            cancel.set()
+                        cancel_task = asyncio.create_task(cancel_lfd())
+                        while not cancel.is_set():
+                            speech = await furhat.listen(noSpeechTimeout=4000)
+                            if cancel.is_set():
+                                break
+                            action, confidence = lfd.get_action(speech, action)
+                            await furhat.say(action)
+                        print("Cancelling")
+                        cancel_task.cancel()
+                    except FileNotFoundError:
+                        print("No LfD data for participant", gui_state['participantId'])
                     print("Cancelled")
                     gui_state['LfDMode'] = 'Idle'
                 elif cmd['mode'] == 'Evaluating':
@@ -87,7 +89,7 @@ async def run_experiment(furhat: FurhatAgent, gui_state):
                         cancel_task = asyncio.create_task(cancel_lfd())
                         with furhat.log(f'Participant-{gui_state["participantId"]}', 'lfd_eval'):
                             while not cancel.is_set():
-                                speech = await furhat.listen(noSpeechTimeout=2000, endSilTimeout=1000)
+                                speech = await furhat.listen(noSpeechTimeout=4000)
                                 if cancel.is_set():
                                     break
                                 action, confidence = lfd.get_action(speech, action)
@@ -134,7 +136,7 @@ async def run_experiment(furhat: FurhatAgent, gui_state):
                     print('Evaluating')
                     gui_state['ITLMode'] = 'Evaluating'
                     with furhat.log(f'Participant-{gui_state["participantId"]}', 'itl_eval'):
-                        itl_task = asyncio.create_task(furhat.execute(int(gui_state['participantId']) - 1))
+                        itl_task = asyncio.create_task(furhat.execute(int(gui_state['participantId']) - 1, skip_intro=True))
                         async def cancel_itl():
                             cmd = await event_queue.get()
                             if cmd['type'] != 'StopLearning':

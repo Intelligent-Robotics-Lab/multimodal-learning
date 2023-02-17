@@ -30,7 +30,7 @@ ready_pairs = [(0, a) for a in yes_answers] + \
 instruction_pairs = [(0, a) for a in done_answers] + \
                     [(1, a) for a in uncertain_answers] + \
                     [(2, a) for a in misrecocognized_answers] + \
-                    [(3, i) for i in instructions['train'][:2000]['sentence']]
+                    [(3, i) for i in instructions['train'][:4000]['sentence']]
 
 def train():
     embedding_model = SimCSE("princeton-nlp/sup-simcse-bert-base-uncased")#sentence_transformers.SentenceTransformer('all-mpnet-base-v2')
@@ -86,3 +86,4 @@ class SentenceClassifier:
     
 if __name__ == '__main__':
     train()
+    print(SentenceClassifier().classify_next("say hi I'm Alpha"))

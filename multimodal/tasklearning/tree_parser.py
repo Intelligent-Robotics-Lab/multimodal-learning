@@ -6,6 +6,7 @@ from multimodal.tasklearning.behaviours import CustomBehavior, Conditional, AskB
 from multimodal.nlp.rephraser import Rephraser
 from multimodal.utils import get_model_path
 from copy import deepcopy
+import re
 import torch
 
 class ParseError(Exception):
@@ -78,6 +79,9 @@ class TextParser:
         print(sentence_anon)
         print("Parse:")
         print(parse)
+        # get match count
+        if len(re.findall(r'\[phrase_\d+\]', parse)) != len(subs):
+            raise ParseError("Parse failed")
         print(self.tokenizer.convert_ids_to_tokens(output_ids[0]))
         for key, value in subs.items():
             parse = parse.replace(key, value)
@@ -148,6 +152,17 @@ class TreeParser(TextParser):
                 current_node.add_child(b)
             return b
         elif fn == 'tell':
+            if args[0].startswith("about"):
+                behavior_name = "tell them " + args[0]
+                if behavior_name in self.learned:
+                    b: Behaviour = deepcopy(self.learned[behavior_name])
+                    b.parent = None
+                else:
+                    b = CustomBehavior(name=behavior_name)
+                    self.learned[behavior_name] = b
+                if current_node:
+                    current_node.add_child(b)
+                return b
             print("Rephrasing:", args[0])
             text = self.rephraser.rephrase_tell("Tell them " + args[0])
             print("Rephrased:", text)
