@@ -44,7 +44,7 @@ repositories {
 
 
 dependencies {
-    compile 'com.furhatrobotics.furhatos:furhat-commons:2.4.+'
+    compile 'com.furhatrobotics.furhatos:furhat-commons:2.5.+'
 }
 
 jar {
