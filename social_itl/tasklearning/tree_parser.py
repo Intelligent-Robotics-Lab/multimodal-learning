@@ -2,9 +2,9 @@ from py_trees.behaviour import Behaviour
 from py_trees.trees import BehaviourTree
 from transformers import AutoTokenizer, AutoModelForTokenClassification, T5ForConditionalGeneration, T5Tokenizer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
-from multimodal.tasklearning.behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
-from multimodal.nlp.rephraser import Rephraser
-from multimodal.utils import get_model_path
+from social_itl.tasklearning.behaviours import CustomBehavior, Conditional, AskBehavior, SayBehavior, PersonSays
+from social_itl.nlp.rephraser import Rephraser
+from social_itl.utils import get_model_path
 from copy import deepcopy
 import re
 import torch

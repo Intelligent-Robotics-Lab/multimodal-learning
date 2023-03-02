@@ -3,7 +3,7 @@ from transformers import AutoTokenizer
 from tokenizers import Tokenizer
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
-from multimodal.utils import get_model_path
+from social_itl.utils import get_model_path
 
 tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 

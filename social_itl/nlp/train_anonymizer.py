@@ -3,8 +3,8 @@ from transformers import AutoTokenizer
 from transformers import DataCollatorForTokenClassification
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 from transformers.pipelines.token_classification import TokenClassificationPipeline
-from multimodal.data.dataset import get_dataset
-from multimodal.utils import get_model_path
+from social_itl.data.dataset import get_dataset
+from social_itl.utils import get_model_path
 
 def label_sentence(sentence: str):
     label = []
@@ -115,6 +115,7 @@ class AnonymizationPipeline(TokenClassificationPipeline):
 pipe = AnonymizationPipeline(model=model, tokenizer=tokenizer, device=0)
 
 print(pipe(["Say hello to the customer",
+"ask for their name",
 "ask them what they would like to order",
 "if they say sandwich then ask them what meat they would like",
 "next ask them whether they want cheese",

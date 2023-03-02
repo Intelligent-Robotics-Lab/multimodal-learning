@@ -7,8 +7,8 @@ import torch
 from torch import nn
 from transformers import (Seq2SeqTrainer, Seq2SeqTrainingArguments,
                           T5ForConditionalGeneration, T5Tokenizer)
-from multimodal.data.dataset import get_dataset
-from multimodal.utils import get_model_path
+from social_itl.data.dataset import get_dataset
+from social_itl.utils import get_model_path
 
 dataset = get_dataset().shuffle()
 tokenizer: T5Tokenizer = T5Tokenizer.from_pretrained("t5-base", model_max_length=128)

@@ -1,5 +1,5 @@
-from multimodal.furhat import Furhat, DisconnectError
-from multimodal.tasklearning.agent import FurhatAgent
+from social_itl.furhat import Furhat, DisconnectError
+from social_itl.tasklearning.agent import FurhatAgent
 from .lfd import LfD
 import asyncio
 import argparse

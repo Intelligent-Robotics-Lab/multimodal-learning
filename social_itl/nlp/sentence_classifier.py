@@ -1,7 +1,7 @@
 import sentence_transformers
 from enum import Enum
-from multimodal.data.dataset import get_dataset
-from multimodal.utils import get_model_path
+from social_itl.data.dataset import get_dataset
+from social_itl.utils import get_model_path
 from sklearn.neighbors import KNeighborsClassifier
 from pickle import dump, load
 from tqdm import tqdm

@@ -13,8 +13,8 @@ class Rephraser:
 f'''The following are instructions telling a store employee what to say to a customer and his corresponding responses.
 Instruction: Ask the customer whether they would like tea or coffee.
 Response: "Would you like tea or coffee?"
-Instruction: Ask them if they would like help with their luggage.
-Response: "Would you like help with your luggage?"
+Instruction: Ask them if they would like anything else with their order.
+Response: "Would you like anything else with your order?"
 Instruction: {phrase}.
 Response: '''
         )
@@ -25,7 +25,7 @@ Response: '''
             input_ids,
             attention_mask=attention_mask,
             do_sample=False,
-            max_length=200,
+            max_length=300,
             eos_token_id=198
         )
         gen_text: str = self.tokenizer.batch_decode(gen_tokens[:, input_ids.shape[1]:-1])[0]

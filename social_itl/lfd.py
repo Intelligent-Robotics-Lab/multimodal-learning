@@ -1,6 +1,6 @@
 import sentence_transformers
-from multimodal.furhat import UserSpeech, SpeakerRole
-from multimodal.utils import get_logger, get_data_path
+from social_itl.furhat import UserSpeech, SpeakerRole
+from social_itl.utils import get_logger, get_data_path
 from typing import AsyncGenerator
 import pickle
 import asyncio

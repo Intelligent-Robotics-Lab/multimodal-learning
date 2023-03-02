@@ -1,14 +1,14 @@
 import asyncio
-from multimodal.furhat import Furhat
-from multimodal.tasklearning.tasklearner import TaskLearner, Prompt, Response
-from multimodal.nlp.sentence_classifier import SentenceClassifier, SentenceType
-from multimodal.utils import get_logger, get_data_path
-from multimodal.tasklearning.behaviours import AskBehavior, SayBehavior
+from social_itl.furhat import Furhat
+from social_itl.tasklearning.tasklearner import TaskLearner, Prompt, Response
+from social_itl.nlp.sentence_classifier import SentenceClassifier, SentenceType
+from social_itl.utils import get_logger, get_data_path
+from social_itl.tasklearning.behaviours import AskBehavior, SayBehavior
 from py_trees.trees import BehaviourTree
 from py_trees.blackboard import Client
 from py_trees.common import Status, Access
 from pickle import dump, load
-from multimodal.tasklearning.behaviours import FurhatBlackboard
+from social_itl.tasklearning.behaviours import FurhatBlackboard
 import py_trees
 
 class DialogAgent:

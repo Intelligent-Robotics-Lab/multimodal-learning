@@ -1,7 +1,7 @@
 venv/
-multimodal/data/*/
+social_itl/data/*/
 *.pyc
-multimodal/logs/*
+social_itl/logs/*
 logs-backup/*
 
 *.DS_Store
