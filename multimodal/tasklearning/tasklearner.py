@@ -117,7 +117,7 @@ class TaskLearner:
                             unlearned.parent.remove_child(unlearned)
                             continue
                         response = yield Prompt(f'So when {unlearned.if_statement.children[0].description}, I will {" and ".join([c.description[2:] for c in unlearned.if_statement.children[1:]])}', False)
-                        response = yield Prompt(f'Is there anything else I should do when {unlearned.if_statement.children[0].description}?', True)
+                        response = yield Prompt(f'Is there anything else I should do if {unlearned.if_statement.children[0].description}?', True)
                         if response.sentence_type == SentenceType.INSTRUCTION:
                             self.parser.append_tree(response.text, self.tree, unlearned.if_statement)
                         elif response.sentence_type == SentenceType.DONE:

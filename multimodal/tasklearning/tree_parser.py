@@ -114,8 +114,12 @@ class TreeParser(TextParser):
         return function, arguments
 
     def append_tree(self, sample: str, tree: BehaviourTree = None, current_node: Behaviour = None):
-        parse = self.parse(sample)
-        return self.build_behavior(parse, tree, current_node)
+        try:
+            parse = self.parse(sample)
+            return self.build_behavior(parse, tree, current_node)
+        except Exception as e:
+            print(e)
+            raise ParseError("Parse failed")
 
     def build_behavior(self, parse: str, tree: BehaviourTree = None, current_node: Behaviour = None):
         fn, args = self._extract_fn(parse)

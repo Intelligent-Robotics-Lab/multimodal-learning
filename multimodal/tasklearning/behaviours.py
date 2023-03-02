@@ -77,6 +77,18 @@ class Conditional(LearnableBehaviour, Selector):
     def learned(self, value):
         pass
 
+    @property
+    def description(self):
+        if len(self.else_statement.children) >= 1:
+            response = f"I respond if {self.if_statement.children[0].description} or {self.else_statement.description}"
+        else:
+            response = f"I respond if {self.if_statement.children[0].description}"
+        return response
+
+    @description.setter
+    def description(self, value):
+        pass
+
 class AskBehavior(Describable, Behaviour):
     def __init__(self, text, **kwargs):
         super().__init__(name='Ask', description=f'I ask, {text}', **kwargs)

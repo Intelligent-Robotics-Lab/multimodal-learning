@@ -2,5 +2,6 @@ venv/
 multimodal/data/*/
 *.pyc
 multimodal/logs/*
+logs-backup/*
 
 *.DS_Store
