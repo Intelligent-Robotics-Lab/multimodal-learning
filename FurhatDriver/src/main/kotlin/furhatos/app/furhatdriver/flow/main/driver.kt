@@ -11,7 +11,7 @@ import furhatos.util.Language
 
 val Background: State = state {
     onEvent("GUIEvent", instant = true) {
-        dialogLogger.logInfo(it.eventParams.toString())
+//        dialogLogger.logInfo(it.eventParams.toString())
         send("furhatos.app.furhatdriver.GUIEvent", it.eventParams.toMap())
     }
 //
@@ -28,7 +28,7 @@ val Driver: State = state {
         furhat.param.endSilTimeout = 1000
         furhat.param.noSpeechTimeout = 8000
         furhat.param.maxSpeechTimeout = 60000
-        dialogLogger.startSession(maxLength = 6000, cloudToken = "0cb0c591-7781-47bb-8417-6a4fe3993c05")
+//        dialogLogger.startSession(maxLength = 6000, cloudToken = "0cb0c591-7781-47bb-8417-6a4fe3993c05")
         parallel(Background)
     }
 
@@ -44,12 +44,12 @@ val Driver: State = state {
         if (furhat.users.count == 0) {
             furhat.attendNobody()
         } else {
-            furhat.attend(it)
+            furhat.attend(furhat.users.userClosestToPosition(Location(0,0,2)))
         }
     }
 //
     onExit {
-        dialogLogger.endSession()
+//        dialogLogger.endSession()
     }
 
     onInterimResponse {
@@ -58,7 +58,6 @@ val Driver: State = state {
 
     onResponse {
         println("Response: " + it.text)
-        dialogLogger.logInfo("response")
         if (infinite) {
             furhat.listen()
         }
@@ -66,7 +65,7 @@ val Driver: State = state {
 //
     onResponseFailed {
         println("Response failed")
-        dialogLogger.logInfo("ASR failure at time " + it.time)
+//        dialogLogger.logInfo("ASR failure at time " + it.time)
         furhat.listen()
     }
 //
@@ -86,7 +85,7 @@ val Driver: State = state {
         furhat.stopListening()
         infinite = it.getBoolean("infinite", false)
         furhat.param.endSilTimeout = it.getInteger("endSilTimeout", 1000)
-        furhat.param.noSpeechTimeout = it.getInteger("timeout", 10000)
+        furhat.param.noSpeechTimeout = it.getInteger("noSpeechTimeout", 10000)
         println("Listening")
         furhat.listen()
     }
