@@ -14,4 +14,5 @@ To setup:
 4. Run `train_parser.py to train the parsing model`
 5. Run `sentence_classifier.py` to train the sentence classifier
 
+## Running the code
 To run the full system, start the furhat driver and run `python -m social_itl --host <ip address>` with the IP address of the furhat robot.
